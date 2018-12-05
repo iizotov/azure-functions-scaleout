@@ -1,8 +1,13 @@
 {
-  "type": "eventHubTrigger",
-  "name": "eventHubMessages",
-  "direction": "in",
-  "eventHubName": "eh-nodejs",
-  "cardinality": "many",
-  "connection": "EVENT_HUB_CONNECTION_STRING"
+  "bindings": [
+    {
+      "type": "eventHubTrigger",
+      "name": "eventHubMessages",
+      "direction": "in",
+      "eventHubName": "eh-nodejs",
+      "connection": "EVENT_HUB_CONNECTION_STRING",
+      "cardinality": "many",
+      "consumerGroup": "$Default"
+    }
+  ]
 }
