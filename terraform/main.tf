@@ -26,7 +26,7 @@ provider "random" {
 }
 
 provider "azurerm" {
-  version         = "1.19.0"
+  version         = ">=1.19.0"
   subscription_id = "${var.subscription_id}"
   client_id       = "${var.client_id}"
   client_secret   = "${var.client_secret}"
@@ -49,6 +49,9 @@ locals {
     function_app_prefetch_count             = "${var.function_app_prefetch_count}"
     function_app_batch_checkpoint_frequency = "${var.function_app_batch_checkpoint_frequency}"
   }
+
+  dotnet_connection_string = "${azurerm_eventhub_namespace.experiment_dotnet.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_dotnet.name}"
+  nodejs_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_nodejs.name}"
 }
 
 # App Insights - shared across all experiments
@@ -90,7 +93,7 @@ resource "azurerm_eventhub_namespace" "experiment_nodejs" {
 }
 
 resource "azurerm_eventhub" "experiment_nodejs" {
-  name                = "eh-nodejs-${random_string.suffix.result}"
+  name                = "eh-nodejs"
   namespace_name      = "${azurerm_eventhub_namespace.experiment_nodejs.name}"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
   partition_count     = "${var.eventhub_partition_count}"
@@ -108,7 +111,7 @@ resource "azurerm_eventhub_namespace" "experiment_dotnet" {
 }
 
 resource "azurerm_eventhub" "experiment_dotnet" {
-  name                = "eh-dotnet-${random_string.suffix.result}"
+  name                = "eh-dotnet"
   namespace_name      = "${azurerm_eventhub_namespace.experiment_dotnet.name}"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
   partition_count     = "${var.eventhub_partition_count}"
@@ -151,8 +154,8 @@ resource "azurerm_function_app" "experiment_nodejs" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
-    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/lmolotii/azure-functions-playgroud/raw/master/scenario1_hop2_node.zip"
-    EVENT_HUB_CONNECTION_STRING    = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};EntityPath=${azurerm_eventhub.experiment_nodejs.name}"
+    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/consumer-nodejs.zip"
+    EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
   }
 }
 
@@ -192,37 +195,112 @@ resource "azurerm_function_app" "experiment_dotnet" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
-    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/lmolotii/azure-functions-playgroud/raw/master/scenario1_hop2_node.zip"
-    EVENT_HUB_CONNECTION_STRING    = "${azurerm_eventhub_namespace.experiment_dotnet.default_primary_connection_string};EntityPath=${azurerm_eventhub.experiment_dotnet.name}"
+    # WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/lmolotii/azure-functions-playgroud/raw/master/scenario1_hop2_node.zip"
+    EVENT_HUB_CONNECTION_STRING    = "${local.dotnet_connection_string}"
   }
 }
 
 # Azure Container Instance - workload for dotnet experiment
-
 resource "azurerm_container_group" "aci-dotnet" {
   name                = "aci-dotnet-${random_string.suffix.result}"
   location            = "${azurerm_resource_group.experiment.location}"
-  ip_address_type     = "public"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
   dns_name_label      = "aci-dotnet-${random_string.suffix.result}"
   os_type             = "Linux"
   restart_policy      = "Never"
   tags                = "${local.common_tags}"
+  ip_address_type     = "Public"
 
   container {
-    name   = "loadgen"
-    image  = "microsoft/aci-helloworld"
+    name   = "loadgen-dotnet"
+    image  = "iizotov/azure-sb-loadgenerator-dotnetcore:latest"
     cpu    = "2"
     memory = "7"
     port   = "80"
 
     environment_variables {
-      "NODE_ENV" = "testing"
+      NUM_ITERATIONS      = "4"
+      CONNECTION_STRING_1 = "${local.dotnet_connection_string}"
+      CONNECTION_STRING_2 = "${local.dotnet_connection_string}"
+      CONNECTION_STRING_3 = "${local.dotnet_connection_string}"
+      CONNECTION_STRING_4 = "${local.dotnet_connection_string}"
+      INITIAL_SLEEP       = "1m"
+      TERMINATE_AFTER_1   = "9960"
+      TERMINATE_AFTER_2   = "3600"
+      TERMINATE_AFTER_3   = "3600"
+      TERMINATE_AFTER_4   = "3600"
+      BATCH_1             = "1"
+      BATCH_2             = "1"
+      BATCH_3             = "100"
+      BATCH_4             = "1000"
+      THROUGHPUT_1        = "10"
+      THROUGHPUT_2        = "0"
+      THROUGHPUT_3        = "0"
+      THROUGHPUT_4        = "0"
+      SIZE_1              = "35"
+      SIZE_2              = "35"
+      SIZE_3              = "35"
+      SIZE_4              = "35"
+      SERVICE_1           = "eh"
+      SERVICE_2           = "eh"
+      SERVICE_3           = "eh"
+      SERVICE_4           = "eh"
     }
 
-    commands = ["/bin/bash", "-c", "'/path to/myscript.sh'"]
+    commands = ["/bin/bash", "./run.sh"]
+
+    # commands = ["/bin/sleep", "99h"]
   }
 }
 
-# Azure Container Instance - workload for nodejs experiment
+resource "azurerm_container_group" "aci-nodejs" {
+  name                = "aci-nodejs-${random_string.suffix.result}"
+  location            = "${azurerm_resource_group.experiment.location}"
+  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  dns_name_label      = "aci-nodejs-${random_string.suffix.result}"
+  os_type             = "Linux"
+  restart_policy      = "Never"
+  tags                = "${local.common_tags}"
+  ip_address_type     = "Public"
 
+  container {
+    name   = "loadgen-nodejs"
+    image  = "iizotov/azure-sb-loadgenerator-dotnetcore:latest"
+    cpu    = "2"
+    memory = "7"
+    port   = "80"
+
+    environment_variables {
+      NUM_ITERATIONS      = "4"
+      CONNECTION_STRING_1 = "${local.nodejs_connection_string}"
+      CONNECTION_STRING_2 = "${local.nodejs_connection_string}"
+      CONNECTION_STRING_3 = "${local.nodejs_connection_string}"
+      CONNECTION_STRING_4 = "${local.nodejs_connection_string}"
+      INITIAL_SLEEP       = "1m"
+      TERMINATE_AFTER_1   = "9960"
+      TERMINATE_AFTER_2   = "3600"
+      TERMINATE_AFTER_3   = "3600"
+      TERMINATE_AFTER_4   = "3600"
+      BATCH_1             = "1"
+      BATCH_2             = "1"
+      BATCH_3             = "100"
+      BATCH_4             = "1000"
+      THROUGHPUT_1        = "10"
+      THROUGHPUT_2        = "0"
+      THROUGHPUT_3        = "0"
+      THROUGHPUT_4        = "0"
+      SIZE_1              = "35"
+      SIZE_2              = "35"
+      SIZE_3              = "35"
+      SIZE_4              = "35"
+      SERVICE_1           = "eh"
+      SERVICE_2           = "eh"
+      SERVICE_3           = "eh"
+      SERVICE_4           = "eh"
+    }
+
+    commands = ["/bin/bash", "./run.sh"]
+
+    # commands = ["/bin/sleep", "99h"]
+  }
+}

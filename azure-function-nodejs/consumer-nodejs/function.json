@@ -1,0 +1,8 @@
+{
+  "type": "cosumer-nodejs",
+  "name": "eventHubMessages",
+  "direction": "in",
+  "eventHubName": "eh-nodejs",
+  "cardinality": "many",
+  "connection": "EVENT_HUB_CONNECTION_STRING"
+}
