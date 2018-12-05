@@ -1,5 +1,5 @@
 {
-  "type": "cosumer-nodejs",
+  "type": "eventHubTrigger",
   "name": "eventHubMessages",
   "direction": "in",
   "eventHubName": "eh-nodejs",

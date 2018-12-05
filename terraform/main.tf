@@ -154,7 +154,7 @@ resource "azurerm_function_app" "experiment_nodejs" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
-    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/consumer-nodejs.zip"
+    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/consumer-nodejs-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}.zip"
     EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
   }
 }
