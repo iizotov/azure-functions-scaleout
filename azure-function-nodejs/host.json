@@ -1,0 +1,20 @@
+{
+    "version": "2.0",
+    "extensions": {
+        "eventHubs": {
+            "batchCheckpointFrequency": 100,
+            "eventProcessorOptions": {
+                "maxBatchSize": 2048,
+                "prefetchCount": 1024
+            }
+        }
+    },
+    "logging": {
+        "applicationInsights": {
+            "samplingSettings": {
+              "isEnabled": true,
+              "maxTelemetryItemsPerSecond" : 500
+            }
+        }
+    }
+}  

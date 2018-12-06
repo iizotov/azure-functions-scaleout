@@ -20,6 +20,8 @@ declare -a CHECKPOINT_ARRAY=(1 10 100)
 
 mkdir -p output/
 
+cd $1; zip -r ../output/zip.template.zip .; cd ..
+
 for PREFETCH in "${PREFETCH_ARRAY[@]}"
 do
     for BATCH in "${BATCH_ARRAY[@]}"
@@ -29,7 +31,7 @@ do
             echo "$PREFETCH $BATCH $CHECKPOINT"
             sed -e "s/\${PREFETCH}/$PREFETCH/" -e "s/\${BATCH}/$BATCH/" -e "s/\${CHECKPOINT}/$CHECKPOINT/" $1/host.template.json > $1/host.json
             ZIP_FILENAME="../output/$1-$BATCH-$PREFETCH-$CHECKPOINT.zip"
-            cd $1; zip -r $ZIP_FILENAME .; cd ..
+            cd $1; cp ../output/zip.template.zip $ZIP_FILENAME; zip -r $ZIP_FILENAME host.json; cd ..
         done
     done
 done
