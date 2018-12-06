@@ -156,6 +156,9 @@ resource "azurerm_function_app" "experiment_nodejs" {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
     WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/azure-function-nodejs-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}.zip"
     EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    FUNCTIONS_WORKER_RUNTIME       = "node"
+    AzureWebJobsDashboard          = ""
   }
 
   site_config {
@@ -201,7 +204,10 @@ resource "azurerm_function_app" "experiment_dotnet" {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
 
     # WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/lmolotii/azure-functions-playgroud/raw/master/scenario1_hop2_node.zip"
-    EVENT_HUB_CONNECTION_STRING = "${local.dotnet_connection_string}"
+    EVENT_HUB_CONNECTION_STRING    = "${local.dotnet_connection_string}"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    FUNCTIONS_WORKER_RUNTIME       = "dotnet"
+    AzureWebJobsDashboard          = ""
   }
 
   site_config {

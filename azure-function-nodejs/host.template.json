@@ -8,5 +8,13 @@
                 "prefetchCount": ${PREFETCH}
             }
         }
+    },
+    "logging": {
+        "applicationInsights": {
+            "samplingSettings": {
+              "isEnabled": true,
+              "maxTelemetryItemsPerSecond" : 500
+            }
+        }
     }
 }  
