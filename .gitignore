@@ -27,3 +27,6 @@ override.tf.json
 terraform/credentials.auto.tfvars
 
 output/
+azure-function-nodejs/obj/Debug/netstandard2.0/project.razor.json
+azure-function-nodejs/obj/Debug/netstandard2.0/extensions.AssemblyInfo.cs
+azure-function-nodejs/obj/Debug/netstandard2.0/extensions.AssemblyInfoInputs.cache

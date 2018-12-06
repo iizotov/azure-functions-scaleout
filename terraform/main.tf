@@ -158,7 +158,7 @@ resource "azurerm_function_app" "experiment_nodejs" {
     EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     FUNCTIONS_WORKER_RUNTIME       = "node"
-    AzureWebJobsDashboard          = ""
+    AzureWebJobsDashboard          = "/"
   }
 
   site_config {
@@ -207,7 +207,7 @@ resource "azurerm_function_app" "experiment_dotnet" {
     EVENT_HUB_CONNECTION_STRING    = "${local.dotnet_connection_string}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     FUNCTIONS_WORKER_RUNTIME       = "dotnet"
-    AzureWebJobsDashboard          = ""
+    AzureWebJobsDashboard          = "/"
   }
 
   site_config {
@@ -240,7 +240,7 @@ resource "azurerm_container_group" "aci-dotnet" {
       CONNECTION_STRING_3 = "${local.dotnet_connection_string}"
       CONNECTION_STRING_4 = "${local.dotnet_connection_string}"
       INITIAL_SLEEP       = "1m"
-      TERMINATE_AFTER_1   = "9960"
+      TERMINATE_AFTER_1   = "60"
       TERMINATE_AFTER_2   = "3600"
       TERMINATE_AFTER_3   = "3600"
       TERMINATE_AFTER_4   = "3600"
@@ -292,7 +292,7 @@ resource "azurerm_container_group" "aci-nodejs" {
       CONNECTION_STRING_3 = "${local.nodejs_connection_string}"
       CONNECTION_STRING_4 = "${local.nodejs_connection_string}"
       INITIAL_SLEEP       = "1m"
-      TERMINATE_AFTER_1   = "9960"
+      TERMINATE_AFTER_1   = "60"
       TERMINATE_AFTER_2   = "3600"
       TERMINATE_AFTER_3   = "3600"
       TERMINATE_AFTER_4   = "3600"
