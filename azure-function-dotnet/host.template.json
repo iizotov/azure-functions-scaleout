@@ -2,10 +2,10 @@
     "version": "2.0",
     "extensions": {
         "eventHubs": {
-            "batchCheckpointFrequency": 100,
+            "batchCheckpointFrequency": ${CHECKPOINT},
             "eventProcessorOptions": {
-                "maxBatchSize": 2048,
-                "prefetchCount": 1024
+                "maxBatchSize": ${BATCH},
+                "prefetchCount": ${PREFETCH}
             }
         }
     },

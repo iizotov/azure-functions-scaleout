@@ -154,15 +154,56 @@ resource "azurerm_function_app" "experiment_nodejs" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
-    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/azure-function-nodejs-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}.zip"
+    WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=nodejs&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
     EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
-    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     FUNCTIONS_WORKER_RUNTIME       = "node"
     AzureWebJobsDashboard          = "/"
   }
 
   site_config {
     use_32_bit_worker_process = false
+  }
+}
+
+# Azure Function - deployment helper
+resource "azurerm_storage_account" "deployment_helper" {
+  name                     = "sadeploymenthelper${random_string.suffix.result}"
+  location                 = "${azurerm_resource_group.experiment.location}"
+  resource_group_name      = "${azurerm_resource_group.experiment.name}"
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  access_tier              = "Hot"
+  account_kind             = "StorageV2"
+  tags                     = "${local.common_tags}"
+}
+
+resource "azurerm_app_service_plan" "deployment_helper" {
+  name                = "asp-deploymenthelper-${random_string.suffix.result}"
+  location            = "${azurerm_resource_group.experiment.location}"
+  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  kind                = "FunctionApp"
+  tags                = "${local.common_tags}"
+
+  sku {
+    tier = "Dynamic"
+    size = "Y1"
+  }
+}
+
+resource "azurerm_function_app" "deployment_helper" {
+  name                      = "af-deploymenthelper-${random_string.suffix.result}"
+  location                  = "${azurerm_resource_group.experiment.location}"
+  resource_group_name       = "${azurerm_resource_group.experiment.name}"
+  app_service_plan_id       = "${azurerm_app_service_plan.experiment_dotnet.id}"
+  storage_connection_string = "${azurerm_storage_account.experiment_dotnet.primary_connection_string}"
+  version                   = "~2"
+  tags                      = "${local.common_tags}"
+
+  app_settings {
+    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
+    NODEJS_TEMPLATE_URL            = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/nodejs-template.zip"
+    DOTNET_TEMPLATE_URL            = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/dotnet-template.zip"
+    FUNCTIONS_WORKER_RUNTIME       = "dotnet"
   }
 }
 
@@ -203,7 +244,7 @@ resource "azurerm_function_app" "experiment_dotnet" {
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
 
-    # WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/lmolotii/azure-functions-playgroud/raw/master/scenario1_hop2_node.zip"
+    # WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=dotnet&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
     EVENT_HUB_CONNECTION_STRING    = "${local.dotnet_connection_string}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     FUNCTIONS_WORKER_RUNTIME       = "dotnet"
@@ -263,7 +304,6 @@ resource "azurerm_container_group" "aci-dotnet" {
     }
 
     commands = ["/bin/bash", "./run.sh"]
-
     # commands = ["/bin/sleep", "99h"]
   }
 }
@@ -315,7 +355,6 @@ resource "azurerm_container_group" "aci-nodejs" {
     }
 
     commands = ["/bin/bash", "./run.sh"]
-
     # commands = ["/bin/sleep", "99h"]
   }
 }

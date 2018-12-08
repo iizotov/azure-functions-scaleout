@@ -1,0 +1,14 @@
+{
+    "$schema": "http://json.schemastore.org/proxies",
+    "proxies": {
+        "deployProxy": {
+            "matchCondition": {
+                "route": "/deploy",
+                "methods": [
+                    "GET"
+                ]
+            },
+            "backendUri": "https://localhost/api/deploy"
+        }
+    }
+}
