@@ -151,13 +151,15 @@ resource "azurerm_function_app" "experiment_nodejs" {
   storage_connection_string = "${azurerm_storage_account.experiment_nodejs.primary_connection_string}"
   version                   = "~2"
   tags                      = "${local.common_tags}"
+  enable_builtin_logging    = false
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
     WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=nodejs&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
     EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "node"
-    AzureWebJobsDashboard          = "/"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    WEBSITE_NODE_DEFAULT_VERSION   = "8.11.1"
   }
 
   site_config {
@@ -167,7 +169,7 @@ resource "azurerm_function_app" "experiment_nodejs" {
 
 # Azure Function - deployment helper
 resource "azurerm_storage_account" "deployment_helper" {
-  name                     = "sadeploymenthelper${random_string.suffix.result}"
+  name                     = "sahelper${random_string.suffix.result}"
   location                 = "${azurerm_resource_group.experiment.location}"
   resource_group_name      = "${azurerm_resource_group.experiment.name}"
   account_tier             = "Standard"
@@ -178,7 +180,7 @@ resource "azurerm_storage_account" "deployment_helper" {
 }
 
 resource "azurerm_app_service_plan" "deployment_helper" {
-  name                = "asp-deploymenthelper-${random_string.suffix.result}"
+  name                = "asp-helper-${random_string.suffix.result}"
   location            = "${azurerm_resource_group.experiment.location}"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
   kind                = "FunctionApp"
@@ -191,19 +193,19 @@ resource "azurerm_app_service_plan" "deployment_helper" {
 }
 
 resource "azurerm_function_app" "deployment_helper" {
-  name                      = "af-deploymenthelper-${random_string.suffix.result}"
+  name                      = "af-helper-${random_string.suffix.result}"
   location                  = "${azurerm_resource_group.experiment.location}"
   resource_group_name       = "${azurerm_resource_group.experiment.name}"
-  app_service_plan_id       = "${azurerm_app_service_plan.experiment_dotnet.id}"
-  storage_connection_string = "${azurerm_storage_account.experiment_dotnet.primary_connection_string}"
+  app_service_plan_id       = "${azurerm_app_service_plan.deployment_helper.id}"
+  storage_connection_string = "${azurerm_storage_account.deployment_helper.primary_connection_string}"
   version                   = "~2"
   tags                      = "${local.common_tags}"
 
   app_settings {
-    WEBSITE_RUN_FROM_PACKAGE       = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
-    NODEJS_TEMPLATE_URL            = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/nodejs-template.zip"
-    DOTNET_TEMPLATE_URL            = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/dotnet-template.zip"
-    FUNCTIONS_WORKER_RUNTIME       = "dotnet"
+    WEBSITE_RUN_FROM_PACKAGE = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
+    NODEJS_TEMPLATE_URL      = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/nodejs-template.zip"
+    DOTNET_TEMPLATE_URL      = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/dotnet-template.zip"
+    FUNCTIONS_WORKER_RUNTIME = "dotnet"
   }
 }
 
@@ -240,6 +242,7 @@ resource "azurerm_function_app" "experiment_dotnet" {
   storage_connection_string = "${azurerm_storage_account.experiment_dotnet.primary_connection_string}"
   version                   = "~2"
   tags                      = "${local.common_tags}"
+  enable_builtin_logging    = false
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
@@ -248,7 +251,6 @@ resource "azurerm_function_app" "experiment_dotnet" {
     EVENT_HUB_CONNECTION_STRING    = "${local.dotnet_connection_string}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     FUNCTIONS_WORKER_RUNTIME       = "dotnet"
-    AzureWebJobsDashboard          = "/"
   }
 
   site_config {
@@ -304,6 +306,7 @@ resource "azurerm_container_group" "aci-dotnet" {
     }
 
     commands = ["/bin/bash", "./run.sh"]
+
     # commands = ["/bin/sleep", "99h"]
   }
 }
@@ -355,6 +358,7 @@ resource "azurerm_container_group" "aci-nodejs" {
     }
 
     commands = ["/bin/bash", "./run.sh"]
+
     # commands = ["/bin/sleep", "99h"]
   }
 }
