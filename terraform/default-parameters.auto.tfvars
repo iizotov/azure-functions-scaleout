@@ -1,6 +1,6 @@
-"eventhub_partition_count" = "2"
+"eventhub_partition_count" = "32"
 
-"eventhub_namespace_capacity" = "2"
+"eventhub_namespace_capacity" = "20"
 
 "region" = "Australia East"
 
