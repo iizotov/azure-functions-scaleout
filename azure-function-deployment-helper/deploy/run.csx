@@ -44,6 +44,7 @@ public static IActionResult Run(HttpRequest req, ILogger log)
 
         log.LogInformation($"{language},{batch}, {prefetch}, {checkpoint}");
 
+
         // download template first
         using (WebClient myWebClient = new WebClient())
         {
@@ -57,8 +58,17 @@ public static IActionResult Run(HttpRequest req, ILogger log)
             using (ZipArchive archive = new ZipArchive(zipStream, ZipArchiveMode.Update))
             {
                 // delete host.json if exists
-                archive.Entries.Where(x => x.Name.Equals("host.json", StringComparison.InvariantCulture))
-                        .FirstOrDefault().Delete();
+                ZipArchiveEntry hostjsonEntry = archive.Entries.Where(x => x.Name.Equals("host.json", StringComparison.InvariantCulture)).FirstOrDefault();
+                ZipArchiveEntry hostjsonTemplateEntry = archive.Entries.Where(x => x.Name.Equals("host.template.json", StringComparison.InvariantCulture)).FirstOrDefault();
+                if (hostjsonEntry != null)
+                {
+                    hostjsonEntry.Delete();
+                }
+
+                if (hostjsonTemplateEntry == null)
+                {
+                    throw new FileNotFoundException($"host.template.json not found in {template_url}");
+                }
 
                 // read host.template.json
                 string hostjsonTemplate = new string(
@@ -75,7 +85,7 @@ public static IActionResult Run(HttpRequest req, ILogger log)
                     .Replace("${PREFETCH}", prefetch.ToString());
 
                 // add host.json to the archive
-                ZipArchiveEntry hostjsonEntry = archive.CreateEntry("host.json");
+                hostjsonEntry = archive.CreateEntry("host.json");
                 using (StreamWriter writer = new StreamWriter(hostjsonEntry.Open()))
                 {
                     writer.Write(hostjson);
