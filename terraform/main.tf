@@ -50,43 +50,36 @@ locals {
     function_app_batch_checkpoint_frequency = "${var.function_app_batch_checkpoint_frequency}"
   }
 
-  dotnet_connection_string = "${azurerm_eventhub_namespace.experiment_dotnet.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_dotnet.name}"
   nodejs_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_nodejs.name}"
 }
 
-# App Insights - shared across all experiments
-resource "azurerm_resource_group" "application_insights" {
-  name     = "rg-appinsights"
+# Resource Group - helper
+resource "azurerm_resource_group" "helper" {
+  name     = "rg-helper"
   location = "${var.region}"
-
-  lifecycle {
-    ignore_changes = "*"
-  }
 }
 
-resource "azurerm_application_insights" "application_insights" {
-  name                = "appinsights"
-  location            = "Southeast Asia"
-  resource_group_name = "${azurerm_resource_group.application_insights.name}"
-  application_type    = "Web"
-
-  lifecycle {
-    ignore_changes = "*"
-  }
-}
-
-# Resource Group per experiment
-resource "azurerm_resource_group" "experiment" {
-  name     = "rg-eh-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
+# Resource Group - nodejs
+resource "azurerm_resource_group" "experiment_nodejs" {
+  name     = "rg-eh-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
   location = "${var.region}"
   tags     = "${local.common_tags}"
+}
+
+# App Insights - nodejs
+resource "azurerm_application_insights" "application_insights_nodejs" {
+  name                = "appinsights-nodejs"
+  location            = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
+  application_type    = "Web"
+  tags                = "${local.common_tags}"
 }
 
 # Event Hub - nodejs
 resource "azurerm_eventhub_namespace" "experiment_nodejs" {
   name                = "eh-ns-nodejs-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  location            = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
   sku                 = "Standard"
   capacity            = "${var.eventhub_namespace_capacity}"
   tags                = "${local.common_tags}"
@@ -95,34 +88,32 @@ resource "azurerm_eventhub_namespace" "experiment_nodejs" {
 resource "azurerm_eventhub" "experiment_nodejs" {
   name                = "eh-nodejs"
   namespace_name      = "${azurerm_eventhub_namespace.experiment_nodejs.name}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
   partition_count     = "${var.eventhub_partition_count}"
   message_retention   = 1
 }
 
-# Event Hub - dotnet
-resource "azurerm_eventhub_namespace" "experiment_dotnet" {
-  name                = "eh-ns-dotnet-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
-  sku                 = "Standard"
-  capacity            = "${var.eventhub_namespace_capacity}"
-  tags                = "${local.common_tags}"
-}
+# Diagnostic Setting for Event Hub
+resource "azurerm_monitor_diagnostic_setting" "diagnostics_nodejs" {
+  name               = "diag_nodejs_${random_string.suffix.result}"
+  target_resource_id = "${azurerm_eventhub_namespace.experiment_nodejs.id}"
+  storage_account_id = "${azurerm_storage_account.diag_sa.id}"
 
-resource "azurerm_eventhub" "experiment_dotnet" {
-  name                = "eh-dotnet"
-  namespace_name      = "${azurerm_eventhub_namespace.experiment_dotnet.name}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
-  partition_count     = "${var.eventhub_partition_count}"
-  message_retention   = 1
+  metric {
+    category = "AllMetrics"
+
+    retention_policy {
+      enabled = true
+      days    = 0
+    }
+  }
 }
 
 # Azure Function - nodejs
 resource "azurerm_storage_account" "experiment_nodejs" {
   name                     = "sanodejs${random_string.suffix.result}"
-  location                 = "${azurerm_resource_group.experiment.location}"
-  resource_group_name      = "${azurerm_resource_group.experiment.name}"
+  location                 = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name      = "${azurerm_resource_group.experiment_nodejs.name}"
   account_tier             = "Standard"
   account_replication_type = "LRS"
   access_tier              = "Hot"
@@ -132,8 +123,8 @@ resource "azurerm_storage_account" "experiment_nodejs" {
 
 resource "azurerm_app_service_plan" "experiment_nodejs" {
   name                = "asp-nodejs-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  location            = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
   kind                = "FunctionApp"
   tags                = "${local.common_tags}"
 
@@ -145,8 +136,8 @@ resource "azurerm_app_service_plan" "experiment_nodejs" {
 
 resource "azurerm_function_app" "experiment_nodejs" {
   name                      = "af-nodejs-${random_string.suffix.result}"
-  location                  = "${azurerm_resource_group.experiment.location}"
-  resource_group_name       = "${azurerm_resource_group.experiment.name}"
+  location                  = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name       = "${azurerm_resource_group.experiment_nodejs.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.experiment_nodejs.id}"
   storage_connection_string = "${azurerm_storage_account.experiment_nodejs.primary_connection_string}"
   version                   = "~2"
@@ -154,7 +145,7 @@ resource "azurerm_function_app" "experiment_nodejs" {
   enable_builtin_logging    = false
 
   app_settings {
-    APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
+    APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights_nodejs.instrumentation_key}"
     WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=nodejs&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
     EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "node"
@@ -167,24 +158,34 @@ resource "azurerm_function_app" "experiment_nodejs" {
   }
 }
 
-# Azure Function - deployment helper
-resource "azurerm_storage_account" "deployment_helper" {
-  name                     = "sahelper${random_string.suffix.result}"
-  location                 = "${azurerm_resource_group.experiment.location}"
-  resource_group_name      = "${azurerm_resource_group.experiment.name}"
+# Diagnostics Storage Account
+
+resource "azurerm_storage_account" "diag_sa" {
+  name                     = "sadiag${random_string.suffix.result}"
+  location                 = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name      = "${azurerm_resource_group.experiment_nodejs.name}"
   account_tier             = "Standard"
   account_replication_type = "LRS"
   access_tier              = "Hot"
   account_kind             = "StorageV2"
-  tags                     = "${local.common_tags}"
+}
+
+# Azure Function - deployment helper
+resource "azurerm_storage_account" "deployment_helper" {
+  name                     = "sahelper${random_string.suffix.result}"
+  location                 = "${azurerm_resource_group.helper.location}"
+  resource_group_name      = "${azurerm_resource_group.helper.name}"
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
+  access_tier              = "Hot"
+  account_kind             = "StorageV2"
 }
 
 resource "azurerm_app_service_plan" "deployment_helper" {
   name                = "asp-helper-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  location            = "${azurerm_resource_group.helper.location}"
+  resource_group_name = "${azurerm_resource_group.helper.name}"
   kind                = "FunctionApp"
-  tags                = "${local.common_tags}"
 
   sku {
     tier = "Dynamic"
@@ -194,12 +195,11 @@ resource "azurerm_app_service_plan" "deployment_helper" {
 
 resource "azurerm_function_app" "deployment_helper" {
   name                      = "af-helper-${random_string.suffix.result}"
-  location                  = "${azurerm_resource_group.experiment.location}"
-  resource_group_name       = "${azurerm_resource_group.experiment.name}"
+  location                  = "${azurerm_resource_group.helper.location}"
+  resource_group_name       = "${azurerm_resource_group.helper.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.deployment_helper.id}"
   storage_connection_string = "${azurerm_storage_account.deployment_helper.primary_connection_string}"
   version                   = "~2"
-  tags                      = "${local.common_tags}"
 
   app_settings {
     WEBSITE_RUN_FROM_PACKAGE = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
@@ -209,11 +209,107 @@ resource "azurerm_function_app" "deployment_helper" {
   }
 }
 
+# Azure Container Instance - workload for nodejs experiment
+
+resource "azurerm_container_group" "aci-nodejs" {
+  name                = "aci-nodejs-${random_string.suffix.result}-${count.index}"
+  location            = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
+  dns_name_label      = "aci-nodejs-${random_string.suffix.result}-${count.index}"
+  os_type             = "Linux"
+  restart_policy      = "Never"
+  tags                = "${local.common_tags}"
+  ip_address_type     = "Public"
+  count               = 4
+
+  container {
+    name   = "loadgen-nodejs"
+    image  = "iizotov/azure-sb-loadgenerator-dotnetcore:latest"
+    cpu    = "2"
+    memory = "7"
+    port   = "80"
+
+    environment_variables {
+      NUM_ITERATIONS      = "4"
+      CONNECTION_STRING_1 = "${local.nodejs_connection_string}"
+      CONNECTION_STRING_2 = "${local.nodejs_connection_string}"
+      CONNECTION_STRING_3 = "${local.nodejs_connection_string}"
+      CONNECTION_STRING_4 = "${local.nodejs_connection_string}"
+      INITIAL_SLEEP       = "1m"
+      TERMINATE_AFTER_1   = "600"
+      TERMINATE_AFTER_2   = "3600"
+      TERMINATE_AFTER_3   = "3600"
+      TERMINATE_AFTER_4   = "3600"
+      BATCH_1             = "1"
+      BATCH_2             = "1"
+      BATCH_3             = "100"
+      BATCH_4             = "1000"
+      THROUGHPUT_1        = "10"
+      THROUGHPUT_2        = "0"
+      THROUGHPUT_3        = "0"
+      THROUGHPUT_4        = "0"
+      SIZE_1              = "35"
+      SIZE_2              = "35"
+      SIZE_3              = "35"
+      SIZE_4              = "35"
+      SERVICE_1           = "eh"
+      SERVICE_2           = "eh"
+      SERVICE_3           = "eh"
+      SERVICE_4           = "eh"
+    }
+
+    commands = ["/bin/bash", "./run.sh"]
+
+    # commands = ["/bin/sleep", "99h"]
+  }
+}
+
+# Dotnet - disabled for now
+/*
+
+locals {
+  dotnet_connection_string = "${azurerm_eventhub_namespace.experiment_dotnet.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_dotnet.name}"
+}
+
+# Resource Group - dotnet
+resource "azurerm_resource_group" "experiment_dotnet" {
+  name     = "rg-eh-dotnet-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
+  location = "${var.region}"
+  tags     = "${local.common_tags}"
+}
+
+# App Insights - dotnet
+resource "azurerm_application_insights" "application_insights_dotnet" {
+  name                = "appinsights-dotnet"
+  location            = "${azurerm_resource_group.experiment_dotnet.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_dotnet.name}"
+  application_type    = "Web"
+  tags                = "${local.common_tags}"
+}
+
+# Event Hub - dotnet
+resource "azurerm_eventhub_namespace" "experiment_dotnet" {
+  name                = "eh-ns-dotnet-${random_string.suffix.result}"
+  location            = "${azurerm_resource_group.experiment_dotnet.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_dotnet.name}"
+  sku                 = "Standard"
+  capacity            = "${var.eventhub_namespace_capacity}"
+  tags                = "${local.common_tags}"
+}
+
+resource "azurerm_eventhub" "experiment_dotnet" {
+  name                = "eh-dotnet"
+  namespace_name      = "${azurerm_eventhub_namespace.experiment_dotnet.name}"
+  resource_group_name = "${azurerm_resource_group.experiment_dotnet.name}"
+  partition_count     = "${var.eventhub_partition_count}"
+  message_retention   = 1
+}
+
 # Azure Function - dotnet
 resource "azurerm_storage_account" "experiment_dotnet" {
   name                     = "sadotnet${random_string.suffix.result}"
-  location                 = "${azurerm_resource_group.experiment.location}"
-  resource_group_name      = "${azurerm_resource_group.experiment.name}"
+  location                 = "${azurerm_resource_group.experiment_dotnet.location}"
+  resource_group_name      = "${azurerm_resource_group.experiment_dotnet.name}"
   account_tier             = "Standard"
   account_replication_type = "LRS"
   access_tier              = "Hot"
@@ -223,8 +319,8 @@ resource "azurerm_storage_account" "experiment_dotnet" {
 
 resource "azurerm_app_service_plan" "experiment_dotnet" {
   name                = "asp-dotnet-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
+  location            = "${azurerm_resource_group.experiment_dotnet.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_dotnet.name}"
   kind                = "FunctionApp"
   tags                = "${local.common_tags}"
 
@@ -236,8 +332,8 @@ resource "azurerm_app_service_plan" "experiment_dotnet" {
 
 resource "azurerm_function_app" "experiment_dotnet" {
   name                      = "af-dotnet-${random_string.suffix.result}"
-  location                  = "${azurerm_resource_group.experiment.location}"
-  resource_group_name       = "${azurerm_resource_group.experiment.name}"
+  location                  = "${azurerm_resource_group.experiment_dotnet.location}"
+  resource_group_name       = "${azurerm_resource_group.experiment_dotnet.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.experiment_dotnet.id}"
   storage_connection_string = "${azurerm_storage_account.experiment_dotnet.primary_connection_string}"
   version                   = "~2"
@@ -245,7 +341,7 @@ resource "azurerm_function_app" "experiment_dotnet" {
   enable_builtin_logging    = false
 
   app_settings {
-    APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
+    APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights_dotnet.instrumentation_key}"
 
     # WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=dotnet&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
     EVENT_HUB_CONNECTION_STRING    = "${local.dotnet_connection_string}"
@@ -260,14 +356,15 @@ resource "azurerm_function_app" "experiment_dotnet" {
 
 # Azure Container Instance - workload for dotnet experiment
 resource "azurerm_container_group" "aci-dotnet" {
-  name                = "aci-dotnet-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
-  dns_name_label      = "aci-dotnet-${random_string.suffix.result}"
+  name                = "aci-dotnet-${random_string.suffix.result}-${count.index}"
+  location            = "${azurerm_resource_group.experiment_dotnet.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_dotnet.name}"
+  dns_name_label      = "aci-dotnet-${random_string.suffix.result}-${count.index}"
   os_type             = "Linux"
   restart_policy      = "Never"
   tags                = "${local.common_tags}"
   ip_address_type     = "Public"
+  count               = 4
 
   container {
     name   = "loadgen-dotnet"
@@ -311,54 +408,5 @@ resource "azurerm_container_group" "aci-dotnet" {
   }
 }
 
-resource "azurerm_container_group" "aci-nodejs" {
-  name                = "aci-nodejs-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
-  dns_name_label      = "aci-nodejs-${random_string.suffix.result}"
-  os_type             = "Linux"
-  restart_policy      = "Never"
-  tags                = "${local.common_tags}"
-  ip_address_type     = "Public"
+*/
 
-  container {
-    name   = "loadgen-nodejs"
-    image  = "iizotov/azure-sb-loadgenerator-dotnetcore:latest"
-    cpu    = "2"
-    memory = "7"
-    port   = "80"
-
-    environment_variables {
-      NUM_ITERATIONS      = "4"
-      CONNECTION_STRING_1 = "${local.nodejs_connection_string}"
-      CONNECTION_STRING_2 = "${local.nodejs_connection_string}"
-      CONNECTION_STRING_3 = "${local.nodejs_connection_string}"
-      CONNECTION_STRING_4 = "${local.nodejs_connection_string}"
-      INITIAL_SLEEP       = "1m"
-      TERMINATE_AFTER_1   = "600"
-      TERMINATE_AFTER_2   = "3600"
-      TERMINATE_AFTER_3   = "3600"
-      TERMINATE_AFTER_4   = "3600"
-      BATCH_1             = "1"
-      BATCH_2             = "1"
-      BATCH_3             = "100"
-      BATCH_4             = "1000"
-      THROUGHPUT_1        = "10"
-      THROUGHPUT_2        = "0"
-      THROUGHPUT_3        = "0"
-      THROUGHPUT_4        = "0"
-      SIZE_1              = "35"
-      SIZE_2              = "35"
-      SIZE_3              = "35"
-      SIZE_4              = "35"
-      SERVICE_1           = "eh"
-      SERVICE_2           = "eh"
-      SERVICE_3           = "eh"
-      SERVICE_4           = "eh"
-    }
-
-    commands = ["/bin/bash", "./run.sh"]
-
-    # commands = ["/bin/sleep", "99h"]
-  }
-}

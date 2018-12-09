@@ -2,7 +2,7 @@
 
 "eventhub_namespace_capacity" = "20"
 
-"region" = "Australia East"
+"region" = "Southeast Asia"
 
 "function_app_prefetch_count" = "512"
 

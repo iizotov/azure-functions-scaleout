@@ -11,7 +11,7 @@ module.exports = async function (context, eventHubMessages) {
         // client.trackMetric({name: "batchSize", value: eventHubMessages.length, tagOverrides:{"ai.operation.id": context.invocationId}});
         // client.trackMetric({name: "stamp", value: process.env.WEBSITE_CURRENT_STAMPNAME, tagOverrides:{"ai.operation.id": context.invocationId}});
         // client.trackMetric({name: "host", value: process.env.COMPUTERNAME, tagOverrides:{"ai.operation.id": context.invocationId}});
-        client.trackMetric({name: "offset", value: context.bindingData.offsetArray[index]});
+        client.trackMetric({name: "offset", value: parseInt(context.bindingData.offsetArray[index])});
         client.trackMetric({name: "latency", value: (nowTimeUTC - enqueuedTimeUtc)});
         client.trackMetric({name: "batchSize", value: eventHubMessages.length});
         // client.trackMetric({name: "stamp", value: process.env.WEBSITE_CURRENT_STAMPNAME});
