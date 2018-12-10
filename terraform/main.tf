@@ -1,3 +1,9 @@
+#TODO: modularise
+# build script to 
+  # a) create multiple modules (delay using https://github.com/hashicorp/terraform/issues/17726)
+  # b) taint helper RG 
+  # c) destroy after a few hours
+
 # Secrets
 variable "subscription_id" {}
 
@@ -55,47 +61,36 @@ locals {
 
 # Resource Group - helper
 resource "azurerm_resource_group" "helper" {
-  name     = "rg-helper"
+  name     = "rg-nodejs-helper"
   location = "${var.region}"
 }
-
-# # Diagnostics Storage Account
-# resource "azurerm_storage_account" "diag_sa" {
-#   name                     = "sadiag${random_string.suffix.result}"
-#   location                 = "${azurerm_resource_group.experiment_nodejs.location}"
-#   resource_group_name      = "${azurerm_resource_group.experiment_nodejs.name}"
-#   account_tier             = "Standard"
-#   account_replication_type = "LRS"
-#   access_tier              = "Hot"
-#   account_kind             = "StorageV2"
-#   tags                     = "${local.common_tags}"
-# }
-
 # Log Management Workspace
 
 resource "azurerm_log_analytics_workspace" "log_analytics" {
-  name                = "oms-${random_string.suffix.result}"
+  name                = "oms-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
   location            = "${azurerm_resource_group.helper.location}"
   resource_group_name = "${azurerm_resource_group.helper.name}"
   sku                 = "Standalone"
   retention_in_days   = 30
 }
 
-# Resource Group - nodejs
-resource "azurerm_resource_group" "experiment_nodejs" {
-  name     = "rg-eh-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
-  location = "${var.region}"
-  tags     = "${local.common_tags}"
-}
-
 # App Insights - nodejs
 resource "azurerm_application_insights" "application_insights_nodejs" {
-  name                = "appinsights-nodejs"
+  name                = "ai-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
   location            = "${azurerm_resource_group.helper.location}"
   resource_group_name = "${azurerm_resource_group.helper.name}"
   application_type    = "Web"
   tags                = "${local.common_tags}"
 }
+
+# Resource Group - nodejs
+resource "azurerm_resource_group" "experiment_nodejs" {
+  name     = "rg-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
+  location = "${var.region}"
+  tags     = "${local.common_tags}"
+}
+
+
 
 # Event Hub - nodejs
 resource "azurerm_eventhub_namespace" "experiment_nodejs" {
@@ -117,8 +112,8 @@ resource "azurerm_eventhub" "experiment_nodejs" {
 
 # Diagnostic Setting for Event Hub
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_eh_nodejs" {
-  name               = "diag_eh_nodejs_${random_string.suffix.result}"
-  target_resource_id = "${azurerm_eventhub_namespace.experiment_nodejs.id}"
+  name                       = "diag_eh_nodejs_${random_string.suffix.result}"
+  target_resource_id         = "${azurerm_eventhub_namespace.experiment_nodejs.id}"
   log_analytics_workspace_id = "${azurerm_log_analytics_workspace.log_analytics.id}"
 
   metric {
@@ -133,8 +128,8 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostics_eh_nodejs" {
 
 # Diagnostic Setting for Function App
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_fa_nodejs" {
-  name               = "diag_fa_nodejs_${random_string.suffix.result}"
-  target_resource_id = "${azurerm_function_app.experiment_nodejs.id}"
+  name                       = "diag_fa_nodejs_${random_string.suffix.result}"
+  target_resource_id         = "${azurerm_function_app.experiment_nodejs.id}"
   log_analytics_workspace_id = "${azurerm_log_analytics_workspace.log_analytics.id}"
 
   metric {
@@ -149,8 +144,8 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostics_fa_nodejs" {
 
 # Diagnostic Setting for App Service Plan
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_asp_nodejs" {
-  name               = "diag_asp_nodejs_${random_string.suffix.result}"
-  target_resource_id = "${azurerm_app_service_plan.experiment_nodejs.id}"
+  name                       = "diag_asp_nodejs_${random_string.suffix.result}"
+  target_resource_id         = "${azurerm_app_service_plan.experiment_nodejs.id}"
   log_analytics_workspace_id = "${azurerm_log_analytics_workspace.log_analytics.id}"
 
   metric {
@@ -162,7 +157,6 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostics_asp_nodejs" {
     }
   }
 }
-
 
 # Azure Function - nodejs
 resource "azurerm_storage_account" "experiment_nodejs" {
@@ -216,8 +210,8 @@ resource "azurerm_function_app" "experiment_nodejs" {
 # Azure Function - deployment helper
 resource "azurerm_storage_account" "deployment_helper" {
   name                     = "sahelper${random_string.suffix.result}"
-  location                 = "${azurerm_resource_group.helper.location}"
-  resource_group_name      = "${azurerm_resource_group.helper.name}"
+  location                 = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name      = "${azurerm_resource_group.experiment_nodejs.name}"
   account_tier             = "Standard"
   account_replication_type = "LRS"
   access_tier              = "Hot"
@@ -226,8 +220,8 @@ resource "azurerm_storage_account" "deployment_helper" {
 
 resource "azurerm_app_service_plan" "deployment_helper" {
   name                = "asp-helper-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.helper.location}"
-  resource_group_name = "${azurerm_resource_group.helper.name}"
+  location            = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
   kind                = "FunctionApp"
 
   sku {
@@ -238,8 +232,8 @@ resource "azurerm_app_service_plan" "deployment_helper" {
 
 resource "azurerm_function_app" "deployment_helper" {
   name                      = "af-helper-${random_string.suffix.result}"
-  location                  = "${azurerm_resource_group.helper.location}"
-  resource_group_name       = "${azurerm_resource_group.helper.name}"
+  location                  = "${azurerm_resource_group.experiment_nodejs.location}"
+  resource_group_name       = "${azurerm_resource_group.experiment_nodejs.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.deployment_helper.id}"
   storage_connection_string = "${azurerm_storage_account.deployment_helper.primary_connection_string}"
   version                   = "~2"

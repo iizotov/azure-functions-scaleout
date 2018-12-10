@@ -30,3 +30,4 @@ output/
 azure-function-nodejs/obj/Debug/netstandard2.0/project.razor.json
 azure-function-nodejs/obj/Debug/netstandard2.0/extensions.AssemblyInfo.cs
 azure-function-nodejs/obj/Debug/netstandard2.0/extensions.AssemblyInfoInputs.cache
+terraform/params1.tfvars
