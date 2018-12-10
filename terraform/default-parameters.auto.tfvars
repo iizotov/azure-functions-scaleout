@@ -4,8 +4,8 @@
 
 "region" = "Southeast Asia"
 
-"function_app_prefetch_count" = "512"
+"function_app_prefetch_count" = "32"
 
-"function_app_max_batch_size" = "256"
+"function_app_max_batch_size" = "64"
 
 "function_app_batch_checkpoint_frequency" = "10"
