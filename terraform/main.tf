@@ -1,8 +1,8 @@
 #TODO: modularise
 # build script to 
-  # a) create multiple modules (delay using https://github.com/hashicorp/terraform/issues/17726)
-  # b) taint helper RG 
-  # c) destroy after a few hours
+# a) create multiple modules (delay using https://github.com/hashicorp/terraform/issues/17726)
+# b) taint helper RG 
+# c) destroy after a few hours
 
 # Secrets
 variable "subscription_id" {}
@@ -56,29 +56,33 @@ locals {
     function_app_batch_checkpoint_frequency = "${var.function_app_batch_checkpoint_frequency}"
   }
 
-  nodejs_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_nodejs.name}"
+  nodejs_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp"
+  nodejs_entitypath_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_nodejs.name}"
+
 }
 
 # Resource Group - helper
-resource "azurerm_resource_group" "helper" {
-  name     = "rg-nodejs-helper"
+resource "azurerm_resource_group" "telemetry" {
+  name     = "rg-nodejs-telemetry"
   location = "${var.region}"
 }
+
 # Log Management Workspace
 
 resource "azurerm_log_analytics_workspace" "log_analytics" {
   name                = "oms-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
-  location            = "${azurerm_resource_group.helper.location}"
-  resource_group_name = "${azurerm_resource_group.helper.name}"
+  location            = "${azurerm_resource_group.telemetry.location}"
+  resource_group_name = "${azurerm_resource_group.telemetry.name}"
   sku                 = "Standalone"
   retention_in_days   = 30
+  tags                = "${local.common_tags}"
 }
 
 # App Insights - nodejs
 resource "azurerm_application_insights" "application_insights_nodejs" {
   name                = "ai-nodejs-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
-  location            = "${azurerm_resource_group.helper.location}"
-  resource_group_name = "${azurerm_resource_group.helper.name}"
+  location            = "${azurerm_resource_group.telemetry.location}"
+  resource_group_name = "${azurerm_resource_group.telemetry.name}"
   application_type    = "Web"
   tags                = "${local.common_tags}"
 }
@@ -89,8 +93,6 @@ resource "azurerm_resource_group" "experiment_nodejs" {
   location = "${var.region}"
   tags     = "${local.common_tags}"
 }
-
-
 
 # Event Hub - nodejs
 resource "azurerm_eventhub_namespace" "experiment_nodejs" {
@@ -216,6 +218,7 @@ resource "azurerm_storage_account" "deployment_helper" {
   account_replication_type = "LRS"
   access_tier              = "Hot"
   account_kind             = "StorageV2"
+  tags                     = "${local.common_tags}"
 }
 
 resource "azurerm_app_service_plan" "deployment_helper" {
@@ -223,6 +226,7 @@ resource "azurerm_app_service_plan" "deployment_helper" {
   location            = "${azurerm_resource_group.experiment_nodejs.location}"
   resource_group_name = "${azurerm_resource_group.experiment_nodejs.name}"
   kind                = "FunctionApp"
+  tags                = "${local.common_tags}"
 
   sku {
     tier = "Dynamic"
@@ -237,6 +241,7 @@ resource "azurerm_function_app" "deployment_helper" {
   app_service_plan_id       = "${azurerm_app_service_plan.deployment_helper.id}"
   storage_connection_string = "${azurerm_storage_account.deployment_helper.primary_connection_string}"
   version                   = "~2"
+  tags                      = "${local.common_tags}"
 
   app_settings {
     WEBSITE_RUN_FROM_PACKAGE = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
@@ -268,12 +273,12 @@ resource "azurerm_container_group" "aci-nodejs" {
 
     environment_variables {
       NUM_ITERATIONS      = "4"
-      CONNECTION_STRING_1 = "${local.nodejs_connection_string}"
-      CONNECTION_STRING_2 = "${local.nodejs_connection_string}"
-      CONNECTION_STRING_3 = "${local.nodejs_connection_string}"
-      CONNECTION_STRING_4 = "${local.nodejs_connection_string}"
-      INITIAL_SLEEP       = "1m"
-      TERMINATE_AFTER_1   = "600"
+      CONNECTION_STRING_1 = "${local.nodejs_entitypath_connection_string}"
+      CONNECTION_STRING_2 = "${local.nodejs_entitypath_connection_string}"
+      CONNECTION_STRING_3 = "${local.nodejs_entitypath_connection_string}"
+      CONNECTION_STRING_4 = "${local.nodejs_entitypath_connection_string}"
+      INITIAL_SLEEP       = "5m"
+      TERMINATE_AFTER_1   = "3600"
       TERMINATE_AFTER_2   = "3600"
       TERMINATE_AFTER_3   = "3600"
       TERMINATE_AFTER_4   = "3600"
