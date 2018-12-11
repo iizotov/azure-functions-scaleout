@@ -1,6 +1,11 @@
 {
-  "schedule": "*/15 * * * * *",
-  "name": "myTimer",
-  "type": "timerTrigger",
-  "direction": "in"
+  "bindings": [
+    {
+      "name": "myTimer",
+      "type": "timerTrigger",
+      "direction": "in",
+      "schedule": "*/15 * * * * *"
+    }
+  ],
+  "disabled": false
 }
