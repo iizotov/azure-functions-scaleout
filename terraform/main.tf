@@ -198,10 +198,10 @@ resource "azurerm_function_app" "experiment_nodejs" {
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights_nodejs.instrumentation_key}"
     WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=nodejs&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
-    EVENT_HUB_CONNECTION_STRING    = "${local.nodejs_connection_string}"
+    EVENT_HUB_CONNECTION_STRING    = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "node"
-    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    WEBSITE_NODE_DEFAULT_VERSION   = "8.11.1"
+    # SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    WEBSITE_NODE_DEFAULT_VERSION   = "8.9.4"
   }
 
   site_config {
@@ -284,8 +284,8 @@ resource "azurerm_container_group" "aci-nodejs" {
       TERMINATE_AFTER_4   = "3600"
       BATCH_1             = "1"
       BATCH_2             = "1"
-      BATCH_3             = "100"
-      BATCH_4             = "1000"
+      BATCH_3             = "10"
+      BATCH_4             = "50"
       THROUGHPUT_1        = "10"
       THROUGHPUT_2        = "0"
       THROUGHPUT_3        = "0"
