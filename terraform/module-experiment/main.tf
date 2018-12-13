@@ -65,7 +65,7 @@ locals {
 
 # Resource Group
 resource "azurerm_resource_group" "experiment" {
-  name     = "rg-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
+  name     = "rg-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
   location = "${var.region}"
   tags     = "${local.common_tags}"
 }
@@ -173,7 +173,7 @@ resource "azurerm_function_app" "experiment" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${var.appinsights_instrumentationkey}"
-    EVENT_HUB_CONNECTION_STRING    = "${var.connection_string}"
+    EVENT_HUB_CONNECTION_STRING    = "${local.connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "${var.language}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     WEBSITE_NODE_DEFAULT_VERSION   = "8.11.1"

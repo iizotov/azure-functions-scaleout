@@ -14,7 +14,7 @@ provider "azurerm" {
 
 module "telemetry" {
   source = "./module-telemetry"
-  region = "East US"
+  region = "Southeast Asia"
 }
 
 ## GENERATE BELOW
@@ -23,7 +23,7 @@ module "experiment_32_20_128_256_10" {
   language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  region                                  = "East US"
+  region                                  = "Southeast Asia"
   client_secret                           = "${var.client_secret}"
   eventhub_partition_count                = 32
   eventhub_namespace_capacity             = 20
@@ -37,7 +37,7 @@ module "experiment_4_20_128_256_10" {
   language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  region                                  = "East US"
+  region                                  = "Southeast Asia"
   client_secret                           = "${var.client_secret}"
   eventhub_partition_count                = 4
   eventhub_namespace_capacity             = 20
