@@ -17,7 +17,7 @@ resource "random_string" "suffix" {
 
 # Resource Group - telemetry
 resource "azurerm_resource_group" "telemetry" {
-  name     = "rg-telemetry"
+  name     = "rg-telemetry-${random_string.suffix.result}"
   location = "${var.region}"
 }
 

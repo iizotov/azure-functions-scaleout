@@ -27,14 +27,14 @@ public static IActionResult Run(HttpRequest req, ILogger log)
         language = req.Query["language"];
         switch (language)
         {
-            case "nodejs":
+            case "node":
                 template_url = nodejs_template_url;
                 break;
             case "dotnet":
                 template_url = dotnet_template_url;
                 break;
             default:
-                throw new ArgumentException("language should be 'nodejs' or 'dotnet'");
+                throw new ArgumentException("language should be 'node' or 'dotnet'");
         }
 
 

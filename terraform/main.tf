@@ -1,6 +1,5 @@
 # Secrets
 variable "subscription_id" {}
-
 variable "client_id" {}
 variable "client_secret" {}
 variable "tenant_id" {}
@@ -15,15 +14,16 @@ provider "azurerm" {
 
 module "telemetry" {
   source = "./module-telemetry"
-  region = "Southeast Asia"
+  region = "East US"
 }
 
 ## GENERATE BELOW
 module "experiment_32_20_128_256_10" {
   source                                  = "./module-experiment"
+  language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  region                                  = "Southeast Asia"
+  region                                  = "East US"
   client_secret                           = "${var.client_secret}"
   eventhub_partition_count                = 32
   eventhub_namespace_capacity             = 20
@@ -34,9 +34,10 @@ module "experiment_32_20_128_256_10" {
 
 module "experiment_4_20_128_256_10" {
   source                                  = "./module-experiment"
+  language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  region                                  = "Southeast Asia"
+  region                                  = "East US"
   client_secret                           = "${var.client_secret}"
   eventhub_partition_count                = 4
   eventhub_namespace_capacity             = 20
@@ -44,3 +45,8 @@ module "experiment_4_20_128_256_10" {
   function_app_prefetch_count             = 256
   function_app_batch_checkpoint_frequency = 10
 }
+
+# TODO:
+#bash script, logic: generate experiment, apply, taint, wait, update config
+#insert wait in event hub loadgen
+
