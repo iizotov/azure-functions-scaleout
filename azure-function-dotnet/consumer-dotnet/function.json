@@ -4,7 +4,7 @@
       "type": "eventHubTrigger",
       "name": "eventHubMessages",
       "direction": "in",
-      "eventHubName": "eh",
+      "eventHubName": "eh", 
       "connection": "EVENT_HUB_CONNECTION_STRING",
       "cardinality": "many",
       "consumerGroup": "$Default"

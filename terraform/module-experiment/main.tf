@@ -1,13 +1,13 @@
 # Secrets
-variable "subscription_id" {}
-
-variable "client_id" {}
-
 variable "client_secret" {}
 
-variable "tenant_id" {}
+data "azurerm_client_config" "current" {}
 
 # Variables
+variable "log_analytics_workspace_id" {}
+
+variable "appinsights_instrumentationkey" {}
+
 variable "eventhub_partition_count" {
   default = 32
 }
@@ -27,21 +27,16 @@ variable "function_app_prefetch_count" {
 variable "function_app_max_batch_size" {
   default = 64
 }
+
 variable "function_app_batch_checkpoint_frequency" {
   default = 10
 }
+
 variable "language" {
   default = "nodejs"
 }
 
 # Providers
-provider "azurerm" {
-  version         = ">=1.19.0"
-  subscription_id = "${var.subscription_id}"
-  client_id       = "${var.client_id}"
-  client_secret   = "${var.client_secret}"
-  tenant_id       = "${var.tenant_id}"
-}
 
 provider "random" {
   version = "2.0"
@@ -66,31 +61,6 @@ locals {
   }
 
   connection_string = "${azurerm_eventhub_namespace.experiment.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment.name}"
-}
-
-# Resource Group - helper
-resource "azurerm_resource_group" "telemetry" {
-  name     = "rg-telemetry"
-  location = "${var.region}"
-}
-
-# Log Management Workspace
-resource "azurerm_log_analytics_workspace" "log_analytics" {
-  name                = "oms-${var.language}-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
-  location            = "${azurerm_resource_group.telemetry.location}"
-  resource_group_name = "${azurerm_resource_group.telemetry.name}"
-  sku                 = "Standalone"
-  retention_in_days   = 30
-  tags                = "${local.common_tags}"
-}
-
-# App Insights - nodejs
-resource "azurerm_application_insights" "application_insights" {
-  name                = "ai-${var.language}-${var.eventhub_namespace_capacity}-${var.eventhub_partition_count}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}"
-  location            = "${azurerm_resource_group.telemetry.location}"
-  resource_group_name = "${azurerm_resource_group.telemetry.name}"
-  application_type    = "Web"
-  tags                = "${local.common_tags}"
 }
 
 # Resource Group
@@ -122,7 +92,7 @@ resource "azurerm_eventhub" "experiment" {
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_eh" {
   name                       = "diag_eh_${var.language}_${random_string.suffix.result}"
   target_resource_id         = "${azurerm_eventhub_namespace.experiment.id}"
-  log_analytics_workspace_id = "${azurerm_log_analytics_workspace.log_analytics.id}"
+  log_analytics_workspace_id = "${var.log_analytics_workspace_id}"
 
   metric {
     category = "AllMetrics"
@@ -138,7 +108,7 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostics_eh" {
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_fa" {
   name                       = "diag_fa_${var.language}_${random_string.suffix.result}"
   target_resource_id         = "${azurerm_function_app.experiment.id}"
-  log_analytics_workspace_id = "${azurerm_log_analytics_workspace.log_analytics.id}"
+  log_analytics_workspace_id = "${var.log_analytics_workspace_id}"
 
   metric {
     category = "AllMetrics"
@@ -154,7 +124,7 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostics_fa" {
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_asp" {
   name                       = "diag_asp_${var.language}_${random_string.suffix.result}"
   target_resource_id         = "${azurerm_app_service_plan.experiment.id}"
-  log_analytics_workspace_id = "${azurerm_log_analytics_workspace.log_analytics.id}"
+  log_analytics_workspace_id = "${var.log_analytics_workspace_id}"
 
   metric {
     category = "AllMetrics"
@@ -202,7 +172,7 @@ resource "azurerm_function_app" "experiment" {
   enable_builtin_logging    = false
 
   app_settings {
-    APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights.instrumentation_key}"
+    APPINSIGHTS_INSTRUMENTATIONKEY = "${var.appinsights_instrumentationkey}"
     EVENT_HUB_CONNECTION_STRING    = "${azurerm_eventhub_namespace.experiment.default_primary_connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "${var.language}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
@@ -213,11 +183,11 @@ resource "azurerm_function_app" "experiment" {
   }
 
   provisioner "local-exec" {
-    command = "az login --service-principal -u ${var.client_id} -p ${var.client_secret} --tenant ${var.tenant_id}"
+    command = "az login --service-principal -u ${data.azurerm_client_config.current.client_id} -p ${var.client_secret} --tenant ${data.azurerm_client_config.current.tenant_id}"
   }
 
   provisioner "local-exec" {
-    command = "az account set --subscription ${var.subscription_id}"
+    command = "az account set --subscription ${data.azurerm_client_config.current.subscription_id}"
   }
 
   provisioner "local-exec" {
