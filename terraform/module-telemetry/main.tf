@@ -32,7 +32,7 @@ resource "azurerm_log_analytics_workspace" "log_analytics" {
 
 # App Insights - nodejs
 resource "azurerm_application_insights" "application_insights" {
-  name                = "ai-${random_string.suffix.result}"
+  name                = "ai"
   location            = "${azurerm_resource_group.telemetry.location}"
   resource_group_name = "${azurerm_resource_group.telemetry.name}"
   application_type    = "Web"

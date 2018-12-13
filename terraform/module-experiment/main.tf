@@ -104,38 +104,6 @@ resource "azurerm_monitor_diagnostic_setting" "diagnostics_eh" {
   }
 }
 
-# Diagnostic Setting for Function App
-resource "azurerm_monitor_diagnostic_setting" "diagnostics_fa" {
-  name                       = "diag_fa_${var.language}_${random_string.suffix.result}"
-  target_resource_id         = "${azurerm_function_app.experiment.id}"
-  log_analytics_workspace_id = "${var.log_analytics_workspace_id}"
-
-  metric {
-    category = "AllMetrics"
-
-    retention_policy {
-      enabled = true
-      days    = 0
-    }
-  }
-}
-
-# Diagnostic Setting for App Service Plan
-resource "azurerm_monitor_diagnostic_setting" "diagnostics_asp" {
-  name                       = "diag_asp_${var.language}_${random_string.suffix.result}"
-  target_resource_id         = "${azurerm_app_service_plan.experiment.id}"
-  log_analytics_workspace_id = "${var.log_analytics_workspace_id}"
-
-  metric {
-    category = "AllMetrics"
-
-    retention_policy {
-      enabled = true
-      days    = 0
-    }
-  }
-}
-
 # Azure Function
 resource "azurerm_storage_account" "experiment" {
   name                     = "sa${var.language}${random_string.suffix.result}"
@@ -162,7 +130,7 @@ resource "azurerm_app_service_plan" "experiment" {
 }
 
 resource "azurerm_function_app" "experiment" {
-  name                      = "af-${var.language}-${random_string.suffix.result}"
+  name                      = "af-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${random_string.suffix.result}"
   location                  = "${azurerm_resource_group.experiment.location}"
   resource_group_name       = "${azurerm_resource_group.experiment.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.experiment.id}"
@@ -177,6 +145,7 @@ resource "azurerm_function_app" "experiment" {
     FUNCTIONS_WORKER_RUNTIME       = "${var.language}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     WEBSITE_NODE_DEFAULT_VERSION   = "8.11.1"
+    EXPERIMENT                     = "${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${random_string.suffix.result}"
   }
 
   site_config {
