@@ -130,7 +130,7 @@ resource "azurerm_app_service_plan" "experiment" {
 }
 
 resource "azurerm_function_app" "experiment" {
-  name                      = "af-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${random_string.suffix.result}"
+  name                      = "af-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}"
   location                  = "${azurerm_resource_group.experiment.location}"
   resource_group_name       = "${azurerm_resource_group.experiment.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.experiment.id}"
