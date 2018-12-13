@@ -13,7 +13,7 @@
         "applicationInsights": {
             "samplingSettings": {
               "isEnabled": true,
-              "maxTelemetryItemsPerSecond" : 2000
+              "maxTelemetryItemsPerSecond" : 10
             }
         }
     }

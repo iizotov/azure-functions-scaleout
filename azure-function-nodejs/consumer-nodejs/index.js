@@ -1,20 +1,22 @@
 const appInsights = require("applicationinsights");
 appInsights.setup()
-    .setAutoDependencyCorrelation(true)
-    .setAutoCollectRequests(true)
-    .setAutoCollectPerformance(true)
-    .setAutoCollectExceptions(true)
-    .setAutoCollectDependencies(true)
-    .setAutoCollectConsole(true)
+    .setAutoDependencyCorrelation(false)
+    .setAutoCollectRequests(false)
+    .setAutoCollectPerformance(false)
+    .setAutoCollectExceptions(false)
+    .setAutoCollectDependencies(false)
+    .setAutoCollectConsole(false)
     .setUseDiskRetryCaching(true)
     .start();
 const client = appInsights.defaultClient;
 
 module.exports = async function (context, eventHubMessages) {
+    total_latency = 0.0;
     eventHubMessages.forEach((message, index) => {
         var enqueuedTimeUtc = new Date(context.bindingData.enqueuedTimeUtcArray[index]).getTime();
         var nowTimeUTC = new Date().getTime();
-        client.trackMetric({name: "latency", value: (nowTimeUTC - enqueuedTimeUtc) / 1000.0});
-        client.trackMetric({name: "batchSize", value: eventHubMessages.length});
+        total_latency += (nowTimeUTC - enqueuedTimeUtc);
     });
+    client.trackMetric({name: "batchAverageLatency", value:  (latency / eventHubMessages.length) / 1000.0});
+    client.trackMetric({name: "batchSize", value: eventHubMessages.length});
 };
