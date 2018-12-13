@@ -17,6 +17,6 @@ module.exports = async function (context, eventHubMessages) {
         var nowTimeUTC = new Date().getTime();
         total_latency += (nowTimeUTC - enqueuedTimeUtc);
     });
-    client.trackMetric({name: "batchAverageLatency", value:  (latency / eventHubMessages.length) / 1000.0});
+    client.trackMetric({name: "batchAverageLatency", value:  (total_latency / eventHubMessages.length) / 1000.0});
     client.trackMetric({name: "batchSize", value: eventHubMessages.length});
 };
