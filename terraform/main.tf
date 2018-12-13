@@ -56,9 +56,8 @@ locals {
     function_app_batch_checkpoint_frequency = "${var.function_app_batch_checkpoint_frequency}"
   }
 
-  nodejs_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp"
+  nodejs_connection_string            = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp"
   nodejs_entitypath_connection_string = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment_nodejs.name}"
-
 }
 
 # Resource Group - helper
@@ -197,16 +196,41 @@ resource "azurerm_function_app" "experiment_nodejs" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${azurerm_application_insights.application_insights_nodejs.instrumentation_key}"
-    WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=nodejs&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
+
+    # WEBSITE_RUN_FROM_PACKAGE       = "${azurerm_function_app.deployment_helper.default_hostname}/deploy?language=nodejs&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
     EVENT_HUB_CONNECTION_STRING    = "${azurerm_eventhub_namespace.experiment_nodejs.default_primary_connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "node"
-    # SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
+    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     WEBSITE_NODE_DEFAULT_VERSION   = "8.9.4"
   }
 
   site_config {
     use_32_bit_worker_process = false
   }
+
+  provisioner "local-exec" {
+    command = "az login --service-principal -u ${var.client_id} -p ${var.client_secret} --tenant ${var.tenant_id}"
+  }
+
+  provisioner "local-exec" {
+    command = "az account set --subscription ${var.subscription_id}"
+  }
+
+  provisioner "local-exec" {
+    command = "curl -o ./${random_string.suffix.result}.zip -G ${azurerm_function_app.deployment_helper.default_hostname}/deploy -d language=nodejs -d batch=${var.function_app_max_batch_size} -d prefetch=${var.function_app_prefetch_count} -d checkpoint=${var.function_app_batch_checkpoint_frequency}"
+  }
+
+  provisioner "local-exec" {
+    command = "az functionapp deployment source config-zip --ids ${azurerm_function_app.experiment_nodejs.id} --src ./${random_string.suffix.result}.zip"
+  }
+
+  # provisioner "local-exec" {
+  #   command = "rm -rf ./${random_string.suffix.result}.zip"
+  # }
+
+  # provisioner "local-exec" {
+  #   command = "del /Q ./${random_string.suffix.result}.zip"
+  # }
 }
 
 # Azure Function - deployment helper
