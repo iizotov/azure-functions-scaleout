@@ -25,6 +25,7 @@ override.tf.json
 #
 # !example_override.tf
 terraform/credentials.auto.tfvars
+terraform/*.zip
 
 output/
 azure-function-nodejs/obj/Debug/netstandard2.0/project.razor.json
