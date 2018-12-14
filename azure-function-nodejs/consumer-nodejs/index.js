@@ -11,7 +11,6 @@ appInsights.setup()
 const client = appInsights.defaultClient;
 
 module.exports = async function (context, eventHubMessages) {
-    client.commonProperties["app"] = context.executionContext.functionName;
     client.commonProperties["experiment"] = process.env["EXPERIMENT"];
     total_latency = 0.0;
     eventHubMessages.forEach((message, index) => {

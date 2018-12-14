@@ -1,0 +1,16 @@
+module "experiment_%%EXPERIMENT%%" {
+  source                                  = "module-experiment"
+  language                                = "%%LANGUAGE%%"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = %%PARTITION%%
+  eventhub_namespace_capacity             = %%THROUGHPUT%%
+  function_app_max_batch_size             = %%BATCH_SIZE%%
+  function_app_prefetch_count             = %%PREFETCH_SIZE%%
+  function_app_batch_checkpoint_frequency = %%CHECKPOINT%%
+}
+

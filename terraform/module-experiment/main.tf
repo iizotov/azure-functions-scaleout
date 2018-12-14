@@ -8,6 +8,10 @@ variable "log_analytics_workspace_id" {}
 
 variable "appinsights_instrumentationkey" {}
 
+variable "sa_telemetry_account_id" {}
+
+variable "deployment_helper_hostname" {}
+
 variable "eventhub_partition_count" {
   default = 32
 }
@@ -61,18 +65,19 @@ locals {
   }
 
   connection_string = "${azurerm_eventhub_namespace.experiment.default_primary_connection_string};TransportType=Amqp;EntityPath=${azurerm_eventhub.experiment.name}"
+  full_name         = "${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
 }
 
 # Resource Group
 resource "azurerm_resource_group" "experiment" {
-  name     = "rg-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
+  name     = "rg-${local.full_name}"
   location = "${var.region}"
   tags     = "${local.common_tags}"
 }
 
 # Event Hub
 resource "azurerm_eventhub_namespace" "experiment" {
-  name                = "eh-ns-${var.language}-${random_string.suffix.result}"
+  name                = "${local.full_name}"
   location            = "${azurerm_resource_group.experiment.location}"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
   sku                 = "Standard"
@@ -88,19 +93,28 @@ resource "azurerm_eventhub" "experiment" {
   message_retention   = 1
 }
 
-# Diagnostic Setting for Event Hub
+# Diagnostic Setting for Event Hub 
 resource "azurerm_monitor_diagnostic_setting" "diagnostics_eh" {
-  name                       = "diag_eh_${var.language}_${random_string.suffix.result}"
+  name                       = "diag_eh_${local.full_name}"
   target_resource_id         = "${azurerm_eventhub_namespace.experiment.id}"
   log_analytics_workspace_id = "${var.log_analytics_workspace_id}"
+  storage_account_id         = "${var.sa_telemetry_account_id}"
 
   metric {
     category = "AllMetrics"
 
     retention_policy {
-      enabled = true
-      days    = 0
+      enabled = false
     }
+  }
+
+  provisioner "local-exec" {
+    command = "az login --service-principal -u ${data.azurerm_client_config.current.client_id} -p ${var.client_secret} --tenant ${data.azurerm_client_config.current.tenant_id}"
+  }
+
+  # Feels like a bug but only after the metrics have been requested at least once they begin to flow into Log Analytics...
+  provisioner "local-exec" {
+    command = " az monitor metrics list --resource ${azurerm_eventhub_namespace.experiment.id}"
   }
 }
 
@@ -117,7 +131,7 @@ resource "azurerm_storage_account" "experiment" {
 }
 
 resource "azurerm_app_service_plan" "experiment" {
-  name                = "asp-${var.language}-${random_string.suffix.result}"
+  name                = "${local.full_name}"
   location            = "${azurerm_resource_group.experiment.location}"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
   kind                = "FunctionApp"
@@ -130,7 +144,7 @@ resource "azurerm_app_service_plan" "experiment" {
 }
 
 resource "azurerm_function_app" "experiment" {
-  name                      = "af-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}"
+  name                      = "${local.full_name}"
   location                  = "${azurerm_resource_group.experiment.location}"
   resource_group_name       = "${azurerm_resource_group.experiment.name}"
   app_service_plan_id       = "${azurerm_app_service_plan.experiment.id}"
@@ -141,11 +155,11 @@ resource "azurerm_function_app" "experiment" {
 
   app_settings {
     APPINSIGHTS_INSTRUMENTATIONKEY = "${var.appinsights_instrumentationkey}"
-    EVENT_HUB_CONNECTION_STRING    = "${local.connection_string}"
+    EVENT_HUB_CONNECTION_STRING    = "${azurerm_eventhub_namespace.experiment.default_primary_connection_string}"
     FUNCTIONS_WORKER_RUNTIME       = "${var.language}"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    WEBSITE_NODE_DEFAULT_VERSION   = "8.11.1"
-    EXPERIMENT                     = "${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${random_string.suffix.result}"
+    # WEBSITE_NODE_DEFAULT_VERSION   = "8.11.1"
+    EXPERIMENT                     = "${local.full_name}"
   }
 
   site_config {
@@ -161,7 +175,7 @@ resource "azurerm_function_app" "experiment" {
   }
 
   provisioner "local-exec" {
-    command = "curl -o ./${random_string.suffix.result}.zip -G ${azurerm_function_app.deployment_helper.default_hostname}/deploy -d language=${var.language} -d batch=${var.function_app_max_batch_size} -d prefetch=${var.function_app_prefetch_count} -d checkpoint=${var.function_app_batch_checkpoint_frequency}"
+    command = "curl -o ./${random_string.suffix.result}.zip -G ${var.deployment_helper_hostname}/deploy -d language=${var.language} -d batch=${var.function_app_max_batch_size} -d prefetch=${var.function_app_prefetch_count} -d checkpoint=${var.function_app_batch_checkpoint_frequency}"
   }
 
   provisioner "local-exec" {
@@ -169,54 +183,12 @@ resource "azurerm_function_app" "experiment" {
   }
 }
 
-# Azure Function - deployment helper
-resource "azurerm_storage_account" "deployment_helper" {
-  name                     = "sahelper${random_string.suffix.result}"
-  location                 = "${azurerm_resource_group.experiment.location}"
-  resource_group_name      = "${azurerm_resource_group.experiment.name}"
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-  access_tier              = "Hot"
-  account_kind             = "StorageV2"
-  tags                     = "${local.common_tags}"
-}
-
-resource "azurerm_app_service_plan" "deployment_helper" {
-  name                = "asp-helper-${random_string.suffix.result}"
-  location            = "${azurerm_resource_group.experiment.location}"
-  resource_group_name = "${azurerm_resource_group.experiment.name}"
-  kind                = "FunctionApp"
-  tags                = "${local.common_tags}"
-
-  sku {
-    tier = "Dynamic"
-    size = "Y1"
-  }
-}
-
-resource "azurerm_function_app" "deployment_helper" {
-  name                      = "af-helper-${random_string.suffix.result}"
-  location                  = "${azurerm_resource_group.experiment.location}"
-  resource_group_name       = "${azurerm_resource_group.experiment.name}"
-  app_service_plan_id       = "${azurerm_app_service_plan.deployment_helper.id}"
-  storage_connection_string = "${azurerm_storage_account.deployment_helper.primary_connection_string}"
-  version                   = "~2"
-  tags                      = "${local.common_tags}"
-
-  app_settings {
-    WEBSITE_RUN_FROM_PACKAGE = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
-    NODEJS_TEMPLATE_URL      = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/nodejs-template.zip"
-    DOTNET_TEMPLATE_URL      = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/dotnet-template.zip"
-    FUNCTIONS_WORKER_RUNTIME = "dotnet"
-  }
-}
-
 # Azure Container Instance - workload generator
 resource "azurerm_container_group" "aci" {
-  name                = "aci-${var.language}-${random_string.suffix.result}-${count.index}"
+  name                = "aci-${local.full_name}-${count.index}"
   location            = "${azurerm_resource_group.experiment.location}"
   resource_group_name = "${azurerm_resource_group.experiment.name}"
-  dns_name_label      = "aci-${var.language}-${random_string.suffix.result}-${count.index}"
+  dns_name_label      = "aci-${local.full_name}-${count.index}"
   os_type             = "Linux"
   restart_policy      = "Never"
   tags                = "${local.common_tags}"
@@ -224,39 +196,50 @@ resource "azurerm_container_group" "aci" {
   count               = 5
 
   container {
-    name   = "loadgen-${var.language}"
+    name   = "loadgen-${local.full_name}"
     image  = "iizotov/azure-sb-loadgenerator-dotnetcore:latest"
     cpu    = "2"
     memory = "7"
     port   = "80"
 
     environment_variables {
-      NUM_ITERATIONS      = "4"
+      NUM_ITERATIONS      = "5"
       CONNECTION_STRING_1 = "${local.connection_string}"
+      CONNECTION_STRING_2 = "${local.connection_string}"
       CONNECTION_STRING_3 = "${local.connection_string}"
       CONNECTION_STRING_4 = "${local.connection_string}"
-      CONNECTION_STRING_2 = "${local.connection_string}"
+      CONNECTION_STRING_5 = "${local.connection_string}"
       INITIAL_SLEEP       = "5m"
-      TERMINATE_AFTER_1   = "3600"
-      TERMINATE_AFTER_2   = "3600"
-      TERMINATE_AFTER_3   = "3600"
-      TERMINATE_AFTER_4   = "3600"
+      SLEEP_1             = "0m"
+      SLEEP_2             = "0m"
+      SLEEP_3             = "0m"
+      SLEEP_4             = "30m"
+      SLEEP_5             = "0m"
+      TERMINATE_AFTER_1   = "1200"
+      TERMINATE_AFTER_2   = "1200"
+      TERMINATE_AFTER_3   = "1200"
+      TERMINATE_AFTER_4   = "1200"
+      TERMINATE_AFTER_5   = "1200"
       BATCH_1             = "1"
       BATCH_2             = "1"
       BATCH_3             = "10"
       BATCH_4             = "50"
+      BATCH_5             = "50"
       THROUGHPUT_1        = "5"
       THROUGHPUT_2        = "0"
       THROUGHPUT_3        = "0"
       THROUGHPUT_4        = "0"
+      THROUGHPUT_5        = "0"
       SIZE_1              = "35"
       SIZE_2              = "35"
       SIZE_3              = "35"
       SIZE_4              = "35"
+      SIZE_5              = "35"
       SERVICE_1           = "eh"
       SERVICE_2           = "eh"
       SERVICE_3           = "eh"
       SERVICE_4           = "eh"
+      SERVICE_5           = "eh"
     }
 
     commands = ["/bin/bash", "./run.sh"]
