@@ -2,7 +2,8 @@
 
 INTERATION_SLEEP=100m
 
-LANGUAGES=( node dotnet )
+# LANGUAGES=( node dotnet )
+LANGUAGES=( node )
 PARTITIONS=( 4 32 )
 BATCH_SIZES=( 16 512 )
 PREFETCH_SIZES=( 0 16 512 )
@@ -29,17 +30,18 @@ function deploy_and_sleep {
 
 cp ./main.tf.template ./main.tf
 
-for LANGUAGE in "${LANGUAGES[@]}"
+
+for PARTITION in "${PARTITIONS[@]}"
 do
-    for PARTITION in "${PARTITIONS[@]}"
+    for BATCH_SIZE in "${BATCH_SIZES[@]}"
     do
-        for BATCH_SIZE in "${BATCH_SIZES[@]}"
+        for PREFETCH_SIZE in "${PREFETCH_SIZES[@]}"
         do
-            for PREFETCH_SIZE in "${PREFETCH_SIZES[@]}"
+            for THROUGHPUT in "${THROUGHPUT_UNITS[@]}"
             do
-                for THROUGHPUT in "${THROUGHPUT_UNITS[@]}"
+                for CHECKPOINT in "${CHECKPOINT_SIZES[@]}"
                 do
-                    for CHECKPOINT in "${CHECKPOINT_SIZES[@]}"
+                    for LANGUAGE in "${LANGUAGES[@]}"
                     do
                         echo "Iteration: $ITERATION_COUNTER / $TOTAL_ITERATIONS, Language: $LANGUAGE, Partitions: $PARTITION, Batch: $BATCH_SIZE, Prefetch: $PREFETCH_SIZE, Throughput: $THROUGHPUT, Checkpoint $CHECKPOINT"
                         

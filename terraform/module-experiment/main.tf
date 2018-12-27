@@ -70,7 +70,8 @@ locals {
     language                                = "${var.language}"
     experiment_id                           = "${var.experiment_id}"
   }
-  full_name         = "exp-${var.experiment_id}-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
+
+  full_name = "exp-${var.experiment_id}-${var.language}-${var.eventhub_partition_count}-${var.eventhub_namespace_capacity}-${var.function_app_max_batch_size}-${var.function_app_prefetch_count}-${var.function_app_batch_checkpoint_frequency}-${random_string.suffix.result}"
 }
 
 # Resource Group
@@ -172,28 +173,27 @@ resource "azurerm_function_app" "experiment" {
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     WEBSITE_NODE_DEFAULT_VERSION   = "10.6.0"
     EXPERIMENT                     = "${local.full_name}"
-    WEBSITE_RUN_FROM_PACKAGE       = "${var.deployment_helper_hostname}/deploy?language=${var.language}&batch=${var.function_app_max_batch_size}&prefetch=${var.function_app_prefetch_count}&checkpoint=${var.function_app_batch_checkpoint_frequency}"
   }
 
   site_config {
     use_32_bit_worker_process = false
   }
 
-  # provisioner "local-exec" {
-  #   command = "az login --service-principal -u ${data.azurerm_client_config.current.client_id} -p ${var.client_secret} --tenant ${data.azurerm_client_config.current.tenant_id}"
-  # }
+  provisioner "local-exec" {
+    command = "az login --service-principal -u ${data.azurerm_client_config.current.client_id} -p ${var.client_secret} --tenant ${data.azurerm_client_config.current.tenant_id}"
+  }
 
-  # provisioner "local-exec" {
-  #   command = "az account set --subscription ${data.azurerm_client_config.current.subscription_id}"
-  # }
+  provisioner "local-exec" {
+    command = "az account set --subscription ${data.azurerm_client_config.current.subscription_id}"
+  }
 
-  # provisioner "local-exec" {
-  #   command = "curl -o ./${random_string.suffix.result}.zip -G ${var.deployment_helper_hostname}/deploy -d language=${var.language} -d batch=${var.function_app_max_batch_size} -d prefetch=${var.function_app_prefetch_count} -d checkpoint=${var.function_app_batch_checkpoint_frequency}"
-  # }
+  provisioner "local-exec" {
+    command = "curl -o ./${random_string.suffix.result}.zip -G ${var.deployment_helper_hostname}/deploy -d language=${var.language} -d batch=${var.function_app_max_batch_size} -d prefetch=${var.function_app_prefetch_count} -d checkpoint=${var.function_app_batch_checkpoint_frequency}"
+  }
 
-  # provisioner "local-exec" {
-  #   command = "az functionapp deployment source config-zip --ids ${azurerm_function_app.experiment.id} --src ./${random_string.suffix.result}.zip"
-  # }
+  provisioner "local-exec" {
+    command = "az functionapp deployment source config-zip --ids ${azurerm_function_app.experiment.id} --src ./${random_string.suffix.result}.zip"
+  }
 }
 
 # Azure Container Instance - workload generator
@@ -226,7 +226,7 @@ resource "azurerm_container_group" "aci" {
       SLEEP_2             = "0m"
       SLEEP_3             = "0m"
       SLEEP_4             = "5m"
-      TERMINATE_AFTER_1   = "1200"
+      TERMINATE_AFTER_1   = "300"
       TERMINATE_AFTER_2   = "1200"
       TERMINATE_AFTER_3   = "1200"
       TERMINATE_AFTER_4   = "1200"

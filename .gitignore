@@ -28,5 +28,9 @@ terraform/credentials.auto.tfvars
 terraform/*.zip
 
 output/
+azure-function-nodejs/obj
+azure-function-nodejs/bin
+azure-function-dotnet/bin
+azure-function-dotnet/obj
 terraform/params1.tfvars
 azure-fin

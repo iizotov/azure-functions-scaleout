@@ -17,6 +17,6 @@ public static async Task Run(EventData[] messageBatch, ILogger log)
         DateTime enqueuedTimeUtc = message.SystemProperties.EnqueuedTimeUtc;
         totalLatency += (nowTimeUTC - enqueuedTimeUtc).TotalMilliseconds;
     }
-    client.TrackMetric("batchSize", messageBatch.Length);
-    client.TrackMetric("batchAverageLatency", (totalLatency / messageBatch.Length) / 1000.0);
+    client.GetMetric("batchSize").TrackValue(messageBatch.Length);
+    client.GetMetric("batchAverageLatency").TrackValue((totalLatency / messageBatch.Length) / 1000.0);
 }
