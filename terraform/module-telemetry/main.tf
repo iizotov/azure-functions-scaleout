@@ -26,8 +26,8 @@ resource "azurerm_log_analytics_workspace" "log_analytics" {
   name                = "oms-${random_string.suffix.result}"
   location            = "${azurerm_resource_group.telemetry.location}"
   resource_group_name = "${azurerm_resource_group.telemetry.name}"
-  # sku                 = "Standalone"
-  sku                 = "PerGB2018"
+  sku                 = "Standalone"
+  # sku                 = "PerGB2018"
   retention_in_days   = 30
 }
 

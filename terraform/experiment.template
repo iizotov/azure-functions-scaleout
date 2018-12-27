@@ -1,4 +1,6 @@
 module "experiment_%%EXPERIMENT%%" {
+  enabled                                 = %%ENABLED%%
+  experiment_id                           = "%%EXPERIMENTID%%"
   source                                  = "module-experiment"
   language                                = "%%LANGUAGE%%"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"

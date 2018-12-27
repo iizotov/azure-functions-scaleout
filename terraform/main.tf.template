@@ -6,7 +6,7 @@ variable "client_secret" {}
 variable "tenant_id" {}
 
 variable "region" {
-  default = "East US"
+  default = "Southeast Asia"
 }
 
 provider "azurerm" {

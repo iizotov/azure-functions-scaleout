@@ -2,7 +2,7 @@
   "bindings": [
     {
       "type": "eventHubTrigger",
-      "name": "eventHubMessages",
+      "name": "messageBatch",
       "direction": "in",
       "eventHubName": "eh",
       "connection": "EVENT_HUB_CONNECTION_STRING",

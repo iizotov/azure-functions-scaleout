@@ -6,7 +6,7 @@ variable "client_secret" {}
 variable "tenant_id" {}
 
 variable "region" {
-  default = "East US"
+  default = "Southeast Asia"
 }
 
 provider "azurerm" {
@@ -18,17 +18,181 @@ provider "azurerm" {
 }
 
 module "telemetry" {
-  source = "./module-telemetry"
+  source = "module-telemetry"
   region = "${var.region}"
 }
 
 ## GENERATE BELOW
-module "experiment_1" {
-  source                                  = "./module-experiment"
+module "experiment_0" {
+  enabled                                 = true
+  experiment_id                           = "0"
+  source                                  = "module-experiment"
   language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  sa_telemetry_connection_string          = "${module.telemetry.sa_telemetry_connection_string}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 16
+  function_app_prefetch_count             = 0
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_1" {
+  enabled                                 = true
+  experiment_id                           = "1"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 16
+  function_app_prefetch_count             = 128
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_2" {
+  enabled                                 = true
+  experiment_id                           = "2"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 16
+  function_app_prefetch_count             = 512
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_3" {
+  enabled                                 = true
+  experiment_id                           = "3"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 128
+  function_app_prefetch_count             = 0
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_4" {
+  enabled                                 = true
+  experiment_id                           = "4"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 128
+  function_app_prefetch_count             = 128
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_5" {
+  enabled                                 = true
+  experiment_id                           = "5"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 128
+  function_app_prefetch_count             = 512
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_6" {
+  enabled                                 = true
+  experiment_id                           = "6"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 256
+  function_app_prefetch_count             = 0
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_7" {
+  enabled                                 = true
+  experiment_id                           = "7"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 256
+  function_app_prefetch_count             = 128
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_8" {
+  enabled                                 = true
+  experiment_id                           = "8"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
+  deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
+  region                                  = "${var.region}"
+  client_secret                           = "${var.client_secret}"
+  eventhub_partition_count                = 4
+  eventhub_namespace_capacity             = 20
+  function_app_max_batch_size             = 256
+  function_app_prefetch_count             = 512
+  function_app_batch_checkpoint_frequency = 10
+}
+
+module "experiment_9" {
+  enabled                                 = true
+  experiment_id                           = "9"
+  source                                  = "module-experiment"
+  language                                = "node"
+  log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
+  appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
   deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
   region                                  = "${var.region}"
   client_secret                           = "${var.client_secret}"
@@ -39,35 +203,39 @@ module "experiment_1" {
   function_app_batch_checkpoint_frequency = 10
 }
 
-module "experiment_2" {
-  source                                  = "./module-experiment"
+module "experiment_10" {
+  enabled                                 = true
+  experiment_id                           = "10"
+  source                                  = "module-experiment"
   language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  sa_telemetry_connection_string          = "${module.telemetry.sa_telemetry_connection_string}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
   deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
   region                                  = "${var.region}"
   client_secret                           = "${var.client_secret}"
   eventhub_partition_count                = 32
   eventhub_namespace_capacity             = 20
   function_app_max_batch_size             = 16
-  function_app_prefetch_count             = 16
+  function_app_prefetch_count             = 128
   function_app_batch_checkpoint_frequency = 10
 }
 
-module "experiment_3" {
-  source                                  = "./module-experiment"
+module "experiment_11" {
+  enabled                                 = true
+  experiment_id                           = "11"
+  source                                  = "module-experiment"
   language                                = "node"
   log_analytics_workspace_id              = "${module.telemetry.log_analytics_workspace_id}"
   appinsights_instrumentationkey          = "${module.telemetry.appinsights_instrumentationkey}"
-  sa_telemetry_connection_string          = "${module.telemetry.sa_telemetry_connection_string}"
+  sa_telemetry_account_id                 = "${module.telemetry.sa_telemetry_account_id}"
   deployment_helper_hostname              = "${module.telemetry.deployment_helper_hostname}"
   region                                  = "${var.region}"
   client_secret                           = "${var.client_secret}"
   eventhub_partition_count                = 32
   eventhub_namespace_capacity             = 20
   function_app_max_batch_size             = 16
-  function_app_prefetch_count             = 32
+  function_app_prefetch_count             = 512
   function_app_batch_checkpoint_frequency = 10
 }
 
