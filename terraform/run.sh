@@ -1,30 +1,36 @@
 #!/bin/bash
 
-INTERATION_SLEEP=100m
+## Adjustable Parameters
+ITERATION_SLEEP=15m 				# Duration of each iteration
+MAX_PARALLEL_EXPERIMENTS=12 		# How iteration to execute in parallel
 
+LANGUAGES=( node )					# Language of Azure Function consumer
+PARTITIONS=( 4 8 32 ) 				# Event Hub Partition Count
+BATCH_SIZES=( 1 16 64 256 512 )		# maxBatchSize values
+PREFETCH_SIZES=( 0 128 512 2048 )	# prefetchCount values
+CHECKPOINT_SIZES=( 10 )				# batchCheckpointFrequency values
+THROUGHPUT_UNITS=( 20 )				# Event Hub Throughput Units
+# Examples
 # LANGUAGES=( node dotnet )
-LANGUAGES=( node )
-PARTITIONS=( 4 32 )
-BATCH_SIZES=( 16 512 )
-PREFETCH_SIZES=( 0 16 512 )
-CHECKPOINT_SIZES=( 10 )
-THROUGHPUT_UNITS=( 20 )
+# CHECKPOINT_SIZES=( 1 10 )
+# THROUGHPUT_UNITS=( 1 10 20 )
 
+##Main Body
 TOTAL_ITERATIONS=$((${#LANGUAGES[@]}*${#PARTITIONS[@]}*${#BATCH_SIZES[@]}*${#PREFETCH_SIZES[@]}*${#CHECKPOINT_SIZES[@]}*${#THROUGHPUT_UNITS[@]}-1))
 ITERATION_COUNTER=0
 EXPERIMENT=0
-MAX_PARALLEL_EXPERIMENTS=12
 
 # Functions Block
 function deploy_and_sleep {
     echo "Deploying $MAX_PARALLEL_EXPERIMENTS parallel experiments"
     terraform init
     terraform apply -auto-approve -parallelism=100
+	echo "Waiting 30 sec before re-deploying in case there were transient issues"
     sleep 30s
     echo "re-deploying in case there were transient failures"
     terraform apply -auto-approve -parallelism=100
-    echo "Finished deploying, waiting for $INTERATION_SLEEP"
-    sleep $INTERATION_SLEEP
+    echo "Finished deploying, waiting for $ITERATION_SLEEP"
+    sleep $ITERATION_SLEEP
 }
 # Main code
 
