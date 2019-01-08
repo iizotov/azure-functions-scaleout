@@ -4,7 +4,7 @@
 > Note: Best consumed ~~chilled~~ with my [blog](https://aka.ms/AA3qsxf) discusssing this experiment in detail
 
 ## Summary
-A Terraform-automated series of independent experiments empirically measuring the throughput and latency of an Event Hub-triggered Azure Function on a Consumption Plan for different combinations of:
+A Terraform-automated series of independent experiments empirically measuring throughput and latency of an Event Hub-triggered Azure Function on a Consumption Plan for different combinations of:
 - number of Partitions in the Event Hub
 - `maxBatchSize` setting in `host.json`
 - `prefetchCount` setting in `host.json`
@@ -36,9 +36,9 @@ A Terraform-automated series of independent experiments empirically measuring th
 	```
 	> Note 1: Terraform will be calling `az` from time to time, hence Azure credentials can not be passed via a [more familiar](https://www.terraform.io/docs/providers/azurerm/auth/service_principal_client_certificate.html#configuring-the-service-principal-in-terraform) `ARM_*` env variables method 
 	
-	> Note 2: by default, all Azure service will be provisioned in West US 2, to choose a different region, modify the setting accordingly, **ensuring that the chosen region can run both Application Insights and Log Analytics**. At the time of writing, `West US 2` and `Southeast Asia` were the two good candidates
+	> Note 2: by default, all Azure service will be provisioned in West US 2, to choose a different region, modify the `region` or `TF_VAR_region` setting accordingly, **ensuring the chosen region can run both Application Insights and Log Analytics**. At the time of writing, `West US 2` and `Southeast Asia` were the two good candidates
 
-2. Edit `./terraform/run.sh` to adjust the arrays below. By default, 60 iterations will be performed covering every combination (60=1x3x5x4x1x1),executed in parallel in batches of 12, 15 minutes per each batch.
+2. Edit `./terraform/run.sh` to adjust the settings below. By default, 60 iterations will be performed covering every combination of array values (60=1x3x5x4x1x1), executed in parallel in batches of 12, 15 minutes per batch.
     ```bash
 	## Adjustable Parameters
 	ITERATION_SLEEP=15m 			# Duration for each iteration
@@ -54,7 +54,7 @@ A Terraform-automated series of independent experiments empirically measuring th
 3. Run `nohup /bin/bash ./terraform/run.sh > output.out 2>&1 &`
 
 ## Experiment Detail
-The experiment will iterate for every possible combination of these  arrays' values as defined in `run.sh`:
+The experiment will iterate through every possible combination of the following arrays' values as defined in `run.sh`:
 - `$LANGUAGES`
 - `$PARTITIONS`
 - `$BATCH_SIZES`
@@ -64,10 +64,10 @@ The experiment will iterate for every possible combination of these  arrays' val
 
 ### Preparation Phase
 
-A new resource group `rg-telemetry-<suffix>` is created with the following services:
-  - Application Insights shared by all iterations
-  - Log Analytics Workspace shared by all iterations
-  - Consumption Plan Azure Function - deployment helper with the following application settings:
+A new resource group `rg-telemetry-<suffix>` is created with these services and will be shared by all iterations:
+  - Azure Application Insights for Azure Functions metrics
+  - Log Analytics Workspace for Event Hub metrics
+  - Consumption Plan Azure Function: deployment helper with the following application settings:
 	```
 	WEBSITE_RUN_FROM_PACKAGE = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/deploymenthelper.zip"
     NODEJS_TEMPLATE_URL      = "https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/nodejs-template.zip"
@@ -78,18 +78,19 @@ A new resource group `rg-telemetry-<suffix>` is created with the following servi
 ### Iteration Phase
 
 Iterations are deployed in parallel, in batches of `$MAX_PARALLEL_EXPERIMENTS`. Each iteration:
-   1. creates a new resource group `exp-<experiment_id>-<language>-<partition_count>-<TUs>-<batch_size>-<prefetch_count>-<checkpoint_freq>-<suffix>`
-   2. provisions a Standard Event Hub Namespace with `$THROUGHPUT_UNITS` TUs with a single Event Hub with `$PARTITIONS` partitions 
-   3. provisions a Consumption plan Azure Function consumer bound to that event hub. The consumer function has its `host.json` configured as per the values in `$BATCH_SIZES`, `$PREFETCH_SIZES` and `$CHECKPOINT_SIZES`
-   4. provisions a load generator as an [Azure Container Instance](https://azure.microsoft.com/en-us/services/container-instances/) running 5 container images of `iizotov/azure-sb-loadgenerator-dotnetcore:latest` flooding the EH with messages to saturate the ingress
-   5. sleeps for `$ITERATION_SLEEP` during which all telemetry from the Event Hub and the Azure Function is flowing into the Log Analytics Workspace and Application Insights for subsequent analysis
-   6. wneh finished, tears down the `exp-...` resource group
+   1. ...creates a new resource group `exp-<experiment_id>-<language>-<partition_count>-<TUs>-<batch_size>-<prefetch_count>-<checkpoint_freq>-<suffix>`
+   2. ...provisions a Standard Event Hub Namespace with `$THROUGHPUT_UNITS` TUs with a single Event Hub with `$PARTITIONS` partitions, enables monitoring via the provisioned Log Analytics Workspace
+   3. ...provisions a Consumption plan Azure Function v2 consumer bound to that event hub with `host.json` configured acccordingly. The function consumes messages from the event hub and stores latency as a custom metric in the provisioned Application Insights instance
+      1. nodejs consumer [template](https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/nodejs-template.zip)
+      2. dotnet core consumer [template](https://github.com/iizotov/azure-functions-scaleout/releases/download/latest/dotnet-template.zip)
+   4. ...provisions a load generator as an [Azure Container Instance] (https://azure.microsoft.com/en-us/services/container-instances/) instance running 5 container images of `iizotov/azure-sb-loadgenerator-dotnetcore:latest` flooding the Event Hub with messages saturating the ingress
+   5. ...sleeps for `$ITERATION_SLEEP` and tears down the `exp-...` resource group
 
-The process repeats until no more iterations left
+The process is repeated until there are no more iterations left.
 
 ### Analysis Time!
 
-The `rg-telemetry-<suffix>` resource group remains for analysis after there are no more iterations left. The [Kusto](https://docs.microsoft.com/en-us/azure/azure-monitor/log-query/log-query-overview) query I wrote joins the Event Hub metrics captured in the Log Analytics workspace to the Azure Functions custom metrics in Appplication Insights. Something along these lines:
+To join the collected Event Hub metrics in the Log Analytics Workspace to the Azure Function custom metrics in Appplication Insights, the following [Kusto](https://docs.microsoft.com/en-us/azure/azure-monitor/log-query/log-query-overview) query can be used:
 ```csharp
 // Application Insights instance, grab all custom metrics
 let ai_raw_metrics = app("ai-33rl7yxp").customMetrics;
@@ -124,13 +125,13 @@ ai_P1M_metrics
 | union eh_P1M_metrics
 | union ai_P1M_instance_count
 ```
-This can be analysed directly or natively [exported into Power BI](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/powerbi) for interactive slicing and dicing 
+This can be analysed directly or [exported to Power BI](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/powerbi) for a more interactive slicing and dicing experiment 
 
 ## Disclaimers
 The code included in this sample is not intended to be a set of best practices on how to build scalable enterprise grade applications. This is beyond the scope of this educational experiment.
 
 ## Related Links
 - My blog interpreting the results [here](https://aka.ms/AA3qsxf) 
-- Actual [results](https://aka.ms/AA3qwza) in Power BI
-- `host.json` [parameters](https://docs.microsoft.com/en-us/azure/azure-functions/functions-bindings-event-hubs#trigger---hostjson-properties)
+- [Results](https://aka.ms/AA3qwza) published to in Power BI
+- Documentation on `host.json` [parameters](https://docs.microsoft.com/en-us/azure/azure-functions/functions-bindings-event-hubs#trigger---hostjson-properties)
 - [Jeff Hollan's blog on Azure Functions](https://medium.com/@jeffhollan)
